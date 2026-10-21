@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LayoutDashboard, LogOut, Menu, MessageSquareText, X } from "@lucide/vue"
+import { BookOpen, LayoutDashboard, LogOut, Menu, MessageSquareText, X } from "@lucide/vue"
 import { ref } from "vue"
 import { useRouter } from "vue-router"
 
@@ -68,6 +68,13 @@ async function signOut(): Promise<void> {
         >
           <MessageSquareText :size="18" />
           AI 采购助手
+        </RouterLink>
+        <RouterLink
+          to="/knowledge"
+          @click="navigationOpen = false"
+        >
+          <BookOpen :size="18" />
+          企业知识库
         </RouterLink>
       </nav>
 

@@ -3,6 +3,10 @@ import type {
   ChatMessage,
   ChatSession,
   ChatTurn,
+  KnowledgeCollection,
+  KnowledgeDocument,
+  KnowledgeDocumentDetail,
+  KnowledgeSearchResponse,
   LoginResponse,
   Page,
   PurchaseIntent,
@@ -29,7 +33,7 @@ function token(): string | null {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   headers.set("Accept", "application/json")
-  if (options.body) headers.set("Content-Type", "application/json")
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json")
   const accessToken = token()
   if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`)
 
@@ -81,4 +85,26 @@ export const api = {
       `/chat/messages/${messageId}/confirm-intent`,
       { method: "POST", body: JSON.stringify({ intent }) },
     ),
+  knowledgeCollections: () => request<KnowledgeCollection[]>("/knowledge/collections"),
+  knowledgeDocuments: (collectionId: string) =>
+    request<Page<KnowledgeDocument>>(
+      `/knowledge/documents?collection_id=${encodeURIComponent(collectionId)}&page=1&page_size=100`,
+    ),
+  knowledgeDocument: (documentId: string) =>
+    request<KnowledgeDocumentDetail>(`/knowledge/documents/${documentId}`),
+  uploadKnowledgeDocument: (collectionId: string, file: File) => {
+    const body = new FormData()
+    body.set("collection_id", collectionId)
+    body.set("file", file)
+    return request<KnowledgeDocument>("/knowledge/documents", { method: "POST", body })
+  },
+  reindexKnowledgeDocument: (documentId: string) =>
+    request<KnowledgeDocument>(`/knowledge/documents/${documentId}/reindex`, { method: "POST" }),
+  deleteKnowledgeDocument: (documentId: string) =>
+    request<KnowledgeDocument>(`/knowledge/documents/${documentId}`, { method: "DELETE" }),
+  searchKnowledge: (collectionId: string, query: string, topK: number) =>
+    request<KnowledgeSearchResponse>("/knowledge/search", {
+      method: "POST",
+      body: JSON.stringify({ collection_id: collectionId, query, top_k: topK }),
+    }),
 }

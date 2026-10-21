@@ -216,6 +216,7 @@ tempCodeRunnerFile.py
 # Node / frontend
 node_modules/
 frontend/dist/
+backend/data/
 *.tsbuildinfo
 
 # Editors / operating systems

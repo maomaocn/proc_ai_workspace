@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Enterprise AI Agent Hub"
     app_env: Literal["local", "test", "staging", "production"] = "local"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     log_level: str = "INFO"
@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     remote_embedding_base_url: str = ""
     remote_embedding_api_key: str = ""
     remote_embedding_model: str = ""
+    embedding_dimensions: int = Field(default=256, ge=64, le=4096)
+    embedding_request_timeout_seconds: int = Field(default=20, ge=1, le=120)
+
+    knowledge_upload_dir: str = "./data/uploads"
+    knowledge_max_file_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
+    knowledge_chunk_size: int = Field(default=700, ge=500, le=800)
+    knowledge_chunk_overlap: int = Field(default=100, ge=80, le=120)
+    knowledge_max_upload_files: int = Field(default=10, ge=1, le=10)
+    chroma_path: str = "./data/chroma"
+    chroma_collection_name: str = "enterprise_ai_knowledge"
+    rag_min_score: float = Field(default=0.12, ge=0.0, le=1.0)
 
     @property
     def cors_origin_list(self) -> list[str]:

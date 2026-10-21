@@ -15,7 +15,7 @@
 | POST | `/chat/sessions/{id}/messages` | 会话所有者 | 发送消息，返回 run_id 与流地址 |
 | GET | `/agent-runs/{run_id}/events` | 运行所有者/技术角色 | SSE 事件流 |
 | GET | `/agent-runs/{run_id}` | 运行所有者/技术角色 | 运行摘要；普通员工字段脱敏 |
-| GET | `/knowledge/collections` | 授权库 | 库列表 |
+| GET/POST | `/knowledge/collections` | 授权库/ADMIN | 库列表/创建库及角色只读 ACL |
 | GET/POST | `/knowledge/documents` | 库读/写权限 | 文档列表/上传 multipart |
 | GET/DELETE | `/knowledge/documents/{id}` | 库权限 | 文档详情/删除 |
 | POST | `/knowledge/documents/{id}/reindex` | 管理员 | 重建索引 |
@@ -56,7 +56,9 @@
 ```
 响应包含 `id`、`status:"DRAFT"`、`version:0`、`created_at`。
 **审批决策** `POST /approvals/tasks/{id}/decision`：Header `Idempotency-Key: <uuid>`；Body `{"action":"REJECT","comment":"预算依据不足"}`。`APPROVE` 可附评论，`REJECT` 必填 5~500 字。返回 `task_id`、`task_status`、`purchase_status`、`decision_id`、`workflow_run_id`。
-**检索** `POST /knowledge/search`：`{"collection_id":"uuid","query":"笔记本审批要求","top_k":5}`；返回 `{"hits":[{"document_id":"uuid","filename":"采购制度.pdf","chunk_id":"uuid","page_number":2,"snippet":"...","score":0.82}],"answer":null}`。score 仅为实际检索器返回的分数，不强制不同引擎间可比。
+**检索** `POST /knowledge/search`：`{"collection_id":"uuid","query":"笔记本审批要求","top_k":5}`；返回 `{"hits":[{"document_id":"uuid","filename":"采购制度.pdf","chunk_id":"uuid","page_number":2,"snippet":"...","score":0.82}],"answer":"根据《采购制度.pdf》第 2 页：...","source":"MOCK","has_sufficient_evidence":true}`。无命中时 `hits=[]`、`has_sufficient_evidence=false`，并明确回答“当前知识库未检索到足够依据”。score 仅为实际检索器返回的分数，不强制不同引擎间可比。
+
+**文档上传** `POST /knowledge/documents` 使用 multipart 字段 `collection_id` 与 `file`；仅支持 PDF/TXT/MD，单文件默认最大 20MB。相同 collection 中同 SHA-256 的非删除文档返回 409；索引失败保留 FAILED 状态与稳定 `error_code`。
 
 ## 4. SSE 事件契约
 `GET /agent-runs/{run_id}/events`，`Content-Type: text/event-stream`；支持 `Last-Event-ID` 恢复已持久化事件，或重新 GET run 状态；事件至少包含 `id`、`event`、`data`。事件类型：`run.started`、`message.delta`、`node.started`、`node.completed`、`tool.started`、`tool.completed`、`run.waiting_approval`、`run.completed`、`run.failed`、`heartbeat`。`data` 通用字段 `run_id`、`seq`、`timestamp`，按事件扩展 `node`、`text_delta`、`tool_name`、`status`、`error_code`、`request_id`。前端按 seq 去重排序；断线重连只订阅，不重新发起写请求。敏感参数不进入事件。

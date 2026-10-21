@@ -85,3 +85,65 @@ export interface ApiErrorBody {
     details?: Record<string, unknown>
   }
 }
+
+export type KnowledgePermission = "READ" | "WRITE" | "ADMIN"
+export type DocumentStatus = "PENDING" | "INDEXING" | "READY" | "FAILED" | "DELETED"
+
+export interface KnowledgeCollection {
+  id: string
+  name: string
+  visibility: "PRIVATE" | "INTERNAL"
+  effective_permission: KnowledgePermission
+  document_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface UploaderSummary {
+  id: string
+  username: string
+}
+
+export interface KnowledgeDocument {
+  id: string
+  collection_id: string
+  filename: string
+  sha256: string
+  mime_type: string
+  size_bytes: number
+  status: DocumentStatus
+  uploaded_by: string
+  uploader: UploaderSummary
+  index_version: number
+  error_code: string | null
+  chunk_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface KnowledgeChunk {
+  id: string
+  chunk_index: number
+  content: string
+  page_number: number | null
+}
+
+export interface KnowledgeDocumentDetail extends KnowledgeDocument {
+  chunks: KnowledgeChunk[]
+}
+
+export interface SearchHit {
+  document_id: string
+  filename: string
+  chunk_id: string
+  page_number: number | null
+  snippet: string
+  score: number
+}
+
+export interface KnowledgeSearchResponse {
+  hits: SearchHit[]
+  answer: string
+  source: "MOCK" | "REMOTE"
+  has_sufficient_evidence: boolean
+}

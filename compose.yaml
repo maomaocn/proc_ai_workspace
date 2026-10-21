@@ -29,7 +29,7 @@ services:
     environment:
       APP_NAME: ${APP_NAME:-Enterprise AI Agent Hub}
       APP_ENV: ${APP_ENV:-local}
-      APP_VERSION: ${APP_VERSION:-0.2.0}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
       API_HOST: ${API_HOST:-0.0.0.0}
       API_PORT: ${API_PORT:-8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -52,6 +52,19 @@ services:
       REMOTE_EMBEDDING_BASE_URL: ${REMOTE_EMBEDDING_BASE_URL:-}
       REMOTE_EMBEDDING_API_KEY: ${REMOTE_EMBEDDING_API_KEY:-}
       REMOTE_EMBEDDING_MODEL: ${REMOTE_EMBEDDING_MODEL:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-256}
+      EMBEDDING_REQUEST_TIMEOUT_SECONDS: ${EMBEDDING_REQUEST_TIMEOUT_SECONDS:-20}
+      KNOWLEDGE_UPLOAD_DIR: /data/uploads
+      KNOWLEDGE_MAX_FILE_BYTES: ${KNOWLEDGE_MAX_FILE_BYTES:-20971520}
+      KNOWLEDGE_CHUNK_SIZE: ${KNOWLEDGE_CHUNK_SIZE:-700}
+      KNOWLEDGE_CHUNK_OVERLAP: ${KNOWLEDGE_CHUNK_OVERLAP:-100}
+      KNOWLEDGE_MAX_UPLOAD_FILES: ${KNOWLEDGE_MAX_UPLOAD_FILES:-10}
+      CHROMA_PATH: /data/chroma
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME:-enterprise_ai_knowledge}
+      RAG_MIN_SCORE: ${RAG_MIN_SCORE:-0.12}
+    volumes:
+      - knowledge_uploads:/data/uploads
+      - chroma_data:/data/chroma
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -91,3 +104,5 @@ services:
 
 volumes:
   postgres_data:
+  knowledge_uploads:
+  chroma_data:

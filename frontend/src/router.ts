@@ -4,6 +4,8 @@ import { auth } from "./auth/store"
 import AppShell from "./components/AppShell.vue"
 import AssistantView from "./views/AssistantView.vue"
 import DashboardView from "./views/DashboardView.vue"
+import KnowledgeDocumentView from "./views/KnowledgeDocumentView.vue"
+import KnowledgeView from "./views/KnowledgeView.vue"
 import LoginView from "./views/LoginView.vue"
 import NotFoundView from "./views/NotFoundView.vue"
 
@@ -17,6 +19,12 @@ const router = createRouter({
       children: [
         { path: "", name: "dashboard", component: DashboardView },
         { path: "assistant/:sessionId?", name: "assistant", component: AssistantView },
+        { path: "knowledge", name: "knowledge", component: KnowledgeView },
+        {
+          path: "knowledge/documents/:documentId",
+          name: "knowledge-document",
+          component: KnowledgeDocumentView,
+        },
       ],
     },
     {

@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 from app.core.security import hash_password
 from app.db.session import SessionFactory
 from app.models.identity import Department, User, UserRole
+from app.models.knowledge import KnowledgeACL, KnowledgeCollection
 
 DEMO_PASSWORD = "DemoPass123!"
 DEMO_USERS = {
@@ -20,6 +21,7 @@ DEMO_USERS = {
 async def seed_demo_data() -> None:
     async with SessionFactory() as session:
         departments: dict[str, Department] = {}
+        users: dict[str, User] = {}
         for department_name in sorted({item[0] for item in DEMO_USERS.values()}):
             department = await session.scalar(
                 select(Department).where(Department.name == department_name)
@@ -50,6 +52,36 @@ async def seed_demo_data() -> None:
                 existing_roles = user.roles
             for role in sorted(roles - existing_roles):
                 user.role_assignments.append(UserRole(role=role))
+            users[username] = user
+
+        await session.flush()
+        collection = await session.scalar(
+            select(KnowledgeCollection)
+            .where(KnowledgeCollection.name == "企业采购制度")
+            .options(selectinload(KnowledgeCollection.acl_entries))
+        )
+        if collection is None:
+            collection = KnowledgeCollection(
+                name="企业采购制度",
+                visibility="INTERNAL",
+                created_by=users["admin"].id,
+                acl_entries=[],
+            )
+            session.add(collection)
+            await session.flush()
+        existing_grants = {
+            (entry.principal_type, entry.principal_id, entry.permission)
+            for entry in collection.acl_entries
+        }
+        employee_read = ("ROLE", "EMPLOYEE", "READ")
+        if employee_read not in existing_grants:
+            collection.acl_entries.append(
+                KnowledgeACL(
+                    principal_type=employee_read[0],
+                    principal_id=employee_read[1],
+                    permission=employee_read[2],
+                )
+            )
         await session.commit()
 
 

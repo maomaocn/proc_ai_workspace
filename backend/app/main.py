@@ -39,7 +39,7 @@ settings.validate_runtime_security()
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Enterprise AI Agent Hub API foundation",
+    description="Enterprise AI Agent Hub API through M2 knowledge and RAG",
     lifespan=lifespan,
 )
 register_exception_handlers(app)
