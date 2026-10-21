@@ -120,17 +120,21 @@ uvicorn app.main:app --reload
 
 ## 本地演示账号
 
-以下账号只用于本地 Mock 演示，初始密码均为 `DemoPass123!`：
+以下账号由本地 seed 命令创建，仅用于 Mock 演示：
 
-| 用户名 | 角色 |
-|---|---|
-| `employee` | EMPLOYEE |
-| `approver` | EMPLOYEE、APPROVER |
-| `procurement` | EMPLOYEE、PROCUREMENT |
-| `admin` | EMPLOYEE、ADMIN |
-| `techadmin` | TECH_ADMIN |
+| 用户名 | 初始密码 | 部门 | 角色与用途 |
+|---|---|---|---|
+| `employee` | `DemoPass123!` | 研发部 | EMPLOYEE，普通员工采购对话 |
+| `approver` | `DemoPass123!` | 财务部 | EMPLOYEE、APPROVER，后续审批演示 |
+| `procurement` | `DemoPass123!` | 采购部 | EMPLOYEE、PROCUREMENT，后续采购执行演示 |
+| `admin` | `DemoPass123!` | 信息技术部 | EMPLOYEE、ADMIN，业务管理接口验收 |
+| `techadmin` | `DemoPass123!` | 信息技术部 | TECH_ADMIN，技术运维权限隔离验收 |
 
-登录接口为 `POST /api/v1/auth/login`，前端登录页为 <http://localhost:5173/login>。
+- 前端登录页：<http://localhost:5173/login>
+- 登录接口：`POST /api/v1/auth/login`
+- 首次体验建议使用 `employee`。
+
+这些是公开的本地演示凭据。生产环境禁止启用 `SEED_DEMO_DATA`，也不得沿用上述密码。
 
 也可以使用项目内虚拟环境：
 
