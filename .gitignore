@@ -151,6 +151,8 @@ activemq-data/
 
 # Environments
 .env
+.env.*
+!.env.example
 .envrc
 .venv
 env/
@@ -210,6 +212,16 @@ tempCodeRunnerFile.py
 
 # PyPI configuration file
 .pypirc
+
+# Node / frontend
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Editors / operating systems
+.DS_Store
+.idea/
+.vscode/
 
 # Marimo
 marimo/_static/

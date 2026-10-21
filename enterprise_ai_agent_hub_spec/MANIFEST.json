@@ -1,0 +1,94 @@
+{
+  "version": "1.1",
+  "package": "Enterprise AI Agent Hub requirements",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "88c810f5716d04fe9dc3b896a15a1eeb4dbac11504cb35f4d58198fb90c21e9b"
+    },
+    {
+      "path": "README.md",
+      "sha256": "96c0f7066f547469c62e1bea2c44e70726524be54c6344a6b1e6e0952d988a3e"
+    },
+    {
+      "path": "START_HERE.md",
+      "sha256": "e117d6c9332bcb672a8802de1597cd97009da762b5c0a829b70255783cca587a"
+    },
+    {
+      "path": "docs/ACCEPTANCE_CRITERIA.md",
+      "sha256": "2848c7fde6a9f64a71749e1af4cae448eb138d9ceb5cf6eeedf7e7e5d1e3747c"
+    },
+    {
+      "path": "docs/AGENT_WORKFLOW.md",
+      "sha256": "7cd7da3a6a7c6964868f533f6936575014fe96faef90b55ca3ed9779622200ff"
+    },
+    {
+      "path": "docs/API_SPEC.md",
+      "sha256": "121e508b0a99009cc91c1ff97634101b70254255b46d2ff270a3c25d7cf5ff98"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "8bb94460121bd2ec910afc06977e5f219320973b3146270b4c92729e09f7663e"
+    },
+    {
+      "path": "docs/CHANGELOG.md",
+      "sha256": "07b53035c03f80bea8c8af9136e2ea364d70571ba863faed9ebef18ae4e987d4"
+    },
+    {
+      "path": "docs/DATABASE_DESIGN.md",
+      "sha256": "967e5e5f6484f5c4c1a5ed3ef84c14fcb83eea68c956e83990dd6c3aff99bfb1"
+    },
+    {
+      "path": "docs/FRONTEND_PRD.md",
+      "sha256": "52fdea9e252bd8333ba5f6ec7863f90f19bb240d07cef1254a8acc2e072c7630"
+    },
+    {
+      "path": "docs/IMPLEMENTATION_PLAN.md",
+      "sha256": "595e269f6d5124a9d801a528a1c599a12e9a4ebb6eecf307fcbcd579ebc21aec"
+    },
+    {
+      "path": "docs/PHASE_STATUS.md",
+      "sha256": "6ef9d967ccaea5c92ea5def3e6f958dc2572f8e6b1a7ccb74ec3eb0518b4c0dd"
+    },
+    {
+      "path": "docs/PRD.md",
+      "sha256": "0d3d971990cc241b9ef1cd5b880f9f54680e04fe8e5aa9c45cb936e065a4394f"
+    },
+    {
+      "path": "docs/UI_DESIGN_SPEC.md",
+      "sha256": "84d9ce4a285df4db3d735e8909e33a393a1e0cd62687db117d67d3299484be64"
+    },
+    {
+      "path": "docs/phases/M0.md",
+      "sha256": "f3129cac5023d806f0cc1b739be6c9288008cc000ba391be5bdee86168af4e4f"
+    },
+    {
+      "path": "docs/phases/M1.md",
+      "sha256": "52ab49ec265ec1119083b1ce34545d5634e67d8efffe07de1d0d0a527a62d7de"
+    },
+    {
+      "path": "docs/phases/M2.md",
+      "sha256": "2b26f7582a9db4c66fa5d931ae6ab89b2471c08d510417db43115bf7c07dce99"
+    },
+    {
+      "path": "docs/phases/M3.md",
+      "sha256": "247650449c2017c777db5ec6998b6b2d0512b343a1057f9c36ebaf9c890841d3"
+    },
+    {
+      "path": "docs/phases/M4.md",
+      "sha256": "ab9da43f0fb001dad574e3ed74c8b2cee66f6cd076ec383995ce599a4737dc7c"
+    },
+    {
+      "path": "docs/phases/M5.md",
+      "sha256": "327d40ed32d867993654d2f252c2246b9c200acc04f5c7370e78d452b04f366d"
+    },
+    {
+      "path": "docs/phases/M6.md",
+      "sha256": "4a96d8c03cfe63951fcb3717c8883cb65fdedabd9e70e01d1fa14be1dbcac376"
+    },
+    {
+      "path": "sample_data/README.md",
+      "sha256": "12d79e1e036bc0cdc8090e86642fedbf1403d5b3b43b6df3941099763be0dd6b"
+    }
+  ]
+}
