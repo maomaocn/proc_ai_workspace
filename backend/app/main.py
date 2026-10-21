@@ -1,12 +1,15 @@
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.api.v1 import router as api_v1_router
 from app.core.config import settings
+from app.core.errors import register_exception_handlers
 from app.db.session import check_database, close_database
 
 
@@ -31,12 +34,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await close_database()
 
 
+settings.validate_runtime_security()
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description="Enterprise AI Agent Hub API foundation",
     lifespan=lifespan,
 )
+register_exception_handlers(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
@@ -44,6 +50,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(api_v1_router)
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request.state.request_id = uuid.uuid4()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = str(request.state.request_id)
+    return response
 
 
 @app.get("/healthz", response_model=HealthResponse, tags=["System"])

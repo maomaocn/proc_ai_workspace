@@ -3,13 +3,13 @@
 Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与办公协同教学项目。
 当前仓库完成
 [V1.1 实施计划](enterprise_ai_agent_hub_spec/docs/IMPLEMENTATION_PLAN.md)的
-**M0：工程骨架与本地环境**。
+**M0：工程骨架与本地环境**和 **M1：身份、会话与 LLM 意图解析**。
 
 需求入口位于 [`enterprise_ai_agent_hub_spec/README.md`](enterprise_ai_agent_hub_spec/README.md)，
 阶段验收状态记录在
 [`docs/PHASE_STATUS.md`](enterprise_ai_agent_hub_spec/docs/PHASE_STATUS.md)。
 
-## M0 已包含
+## 当前能力
 
 - Python 3.12、FastAPI、Pydantic v2、SQLAlchemy 2 和 Alembic
 - PostgreSQL 16 与 Docker Compose
@@ -17,8 +17,14 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 - 默认 Mock 模型与 Mock Embedding 配置，不需要真实 API Key
 - `/healthz` 存活检查、`/readyz` PostgreSQL 就绪检查和 OpenAPI 文档
 - Pytest、Ruff、ESLint、Vue TSC 和前端构建命令
+- Argon2 密码哈希、JWT 登录、多角色 RBAC 与管理员用户 API
+- PostgreSQL 会话/消息持久化和会话所有权隔离
+- 可复现 Mock LLM 与 OpenAI-compatible 意图解析适配器
+- 严格的 `PurchaseIntent`、缺字段追问和服务端确认状态
+- Vue 登录、工作台、采购助手和可编辑结构化意图卡
 
-M0 不包含用户、采购、RAG、Agent、MCP 或审批业务；这些功能按 M1-M6 逐步实现。
+M1 不创建或提交采购申请，也不包含 RAG、库存报价、审批、LangGraph、MCP 或
+Harness；这些功能按 M2-M6 逐步实现。
 
 ## 环境要求
 
@@ -70,8 +76,8 @@ docker compose down
 cp .env.example .env
 ```
 
-默认值为 `MODEL_PROVIDER=mock` 和 `EMBEDDING_PROVIDER=mock`。可选远程 Provider
-变量目前只作为后续里程碑的安全配置入口，M0 不会调用任何模型服务。
+默认值为 `MODEL_PROVIDER=mock` 和 `EMBEDDING_PROVIDER=mock`。Mock 意图解析无需
+任何 API Key 且结果可复现；切换 `openai_compatible` 时才读取对应 URL、模型和 Key。
 `DATABASE_URL` 用于本地 Python/Conda，`COMPOSE_DATABASE_URL` 用于 API 容器，
 避免容器误将 `localhost` 当作 PostgreSQL 服务。
 
@@ -85,7 +91,9 @@ API 容器启动时执行：
 alembic upgrade head
 ```
 
-M0 的迁移只建立 Alembic 基线，不创建 M1-M6 的业务表，也没有种子业务数据。
+M1 迁移新增部门、用户、多角色、会话和消息表。启动脚本在非生产环境执行幂等
+演示 seed；它只补充缺失记录，不清空或覆盖已有用户。生产环境必须设置
+`SEED_DEMO_DATA=false` 并替换 `JWT_SECRET_KEY`。
 进入后端目录后可手动检查迁移：
 
 ```bash
@@ -110,6 +118,20 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
+## 本地演示账号
+
+以下账号只用于本地 Mock 演示，初始密码均为 `DemoPass123!`：
+
+| 用户名 | 角色 |
+|---|---|
+| `employee` | EMPLOYEE |
+| `approver` | EMPLOYEE、APPROVER |
+| `procurement` | EMPLOYEE、PROCUREMENT |
+| `admin` | EMPLOYEE、ADMIN |
+| `techadmin` | TECH_ADMIN |
+
+登录接口为 `POST /api/v1/auth/login`，前端登录页为 <http://localhost:5173/login>。
+
 也可以使用项目内虚拟环境：
 
 ```bash
@@ -129,7 +151,13 @@ ruff check .
 pytest
 ```
 
-测试通过依赖覆盖验证 `/readyz` 的成功和失败响应，不要求本机安装 PostgreSQL。
+默认测试包含单元测试；PostgreSQL 集成测试使用本项目的 `55432` 验收数据库：
+
+```bash
+RUN_DB_TESTS=true \
+DATABASE_URL=postgresql+asyncpg://app:app@localhost:55432/enterprise_ai_agent_hub \
+pytest
+```
 
 ## 本地前端开发
 
@@ -146,6 +174,7 @@ Vite 开发服务器默认访问 `http://localhost:5173`，并将 `/api` 请求�
 cd frontend
 npm run lint
 npm run typecheck
+npm test
 npm run build
 ```
 
@@ -162,7 +191,7 @@ npm run build
 └── compose.yaml
 ```
 
-## M0 验收
+## M1 验收
 
 ```bash
 docker compose config
@@ -173,8 +202,11 @@ POSTGRES_PORT=55432 docker compose exec api ruff check .
 POSTGRES_PORT=55432 docker compose exec api pytest
 npm --prefix frontend run lint
 npm --prefix frontend run typecheck
+npm --prefix frontend test
 npm --prefix frontend run build
-POSTGRES_PORT=55432 docker compose down
+npm --prefix frontend audit
 ```
 
-上例使用 `55432` 是为了避免与宿主机已有 PostgreSQL 冲突；未占用 `5432` 时可省略该环境变量。
+验收栈保持运行时可直接访问前端进行登录和意图确认。使用 `55432` 是为了避免与
+宿主机已有 PostgreSQL 冲突；停止时执行 `POSTGRES_PORT=55432 docker compose down`，
+不要添加 `-v`，以保留数据库卷。

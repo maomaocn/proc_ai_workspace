@@ -4,22 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "enterprise-ai-agent-hub-backend"
-version = "0.1.0"
-description = "M0 backend foundation for Enterprise AI Agent Hub"
+version = "0.2.0"
+description = "Backend for Enterprise AI Agent Hub"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "alembic==1.16.1",
   "asyncpg==0.30.0",
   "fastapi==0.115.12",
+  "httpx==0.28.1",
+  "pwdlib[argon2]==0.3.1",
   "pydantic-settings==2.9.1",
+  "pyjwt==2.15.1",
   "sqlalchemy[asyncio]==2.0.41",
   "uvicorn[standard]==0.34.2",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "httpx==0.28.1",
-  "pytest==8.3.5",
+  "pytest==8.4.2",
+  "pytest-asyncio==1.4.0",
   "ruff==0.11.10",
 ]
 
@@ -28,6 +31,9 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 pythonpath = ["."]
 testpaths = ["tests"]
 
