@@ -22,6 +22,7 @@
 | POST | `/knowledge/search` | 库读权限 | 检索与引用 |
 | GET/POST | `/procurements` | 登录 | 列表/创建草稿 |
 | GET/PATCH | `/procurements/{id}` | 资源权限 | 详情/编辑草稿 |
+| POST | `/procurements/{id}/plan` | 申请人草稿 | 只读工具生成候选方案与制度依据 |
 | POST | `/procurements/{id}/submit` | 申请人 | 提交审批 |
 | POST | `/procurements/{id}/cancel` | 申请人 | 仅草稿取消 |
 | GET | `/approvals/tasks` | APPROVER | 我的待办/历史 |
@@ -42,6 +43,9 @@
 | GET/POST | `/admin/approval-rules` | ADMIN | 审批规则列表/创建 |
 
 ## 3. 关键请求响应示例
+> M3 已实现采购草稿、方案、库存、供应商和报价接口。提交、取消、审批、履约、工作流、
+> MCP 与 Harness 接口仍是后续阶段契约，本阶段不得视为可调用接口。
+
 **意图解析** `POST /chat/parse-intent`：
 ```json
 {"text":"采购10台笔记本，每台预算6000元以内","session_id":null}
@@ -55,6 +59,12 @@
 {"title":"研发设备采购","category":"笔记本电脑","item_description":"办公笔记本","quantity":10,"unit_price_limit":"6000.00","total_budget":"60000.00","purpose":"研发办公","priority":"NORMAL","notes":""}
 ```
 响应包含 `id`、`status:"DRAFT"`、`version:0`、`created_at`。
+
+**生成采购方案** `POST /procurements/{id}/plan`：仅申请人自己的 `DRAFT` 可执行。
+服务端依次调用 `inventory.search`、`policy.search` 和匹配商品的 `supplier.quote`，返回
+`procurement.candidates`、`policy` 与只读 `tool_calls` 摘要。报价来源固定标识为 `DEMO`；
+金额以两位小数字符串传输并由服务端 `Decimal` 计算。
+
 **审批决策** `POST /approvals/tasks/{id}/decision`：Header `Idempotency-Key: <uuid>`；Body `{"action":"REJECT","comment":"预算依据不足"}`。`APPROVE` 可附评论，`REJECT` 必填 5~500 字。返回 `task_id`、`task_status`、`purchase_status`、`decision_id`、`workflow_run_id`。
 **检索** `POST /knowledge/search`：`{"collection_id":"uuid","query":"笔记本审批要求","top_k":5}`；返回 `{"hits":[{"document_id":"uuid","filename":"采购制度.pdf","chunk_id":"uuid","page_number":2,"snippet":"...","score":0.82}],"answer":"根据《采购制度.pdf》第 2 页：...","source":"MOCK","has_sufficient_evidence":true}`。无命中时 `hits=[]`、`has_sufficient_evidence=false`，并明确回答“当前知识库未检索到足够依据”。score 仅为实际检索器返回的分数，不强制不同引擎间可比。
 

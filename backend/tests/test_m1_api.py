@@ -98,7 +98,7 @@ async def test_chat_session_isolation(client: httpx.AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_intent_flow_requires_confirmation_without_procurement_side_effect(
+async def test_intent_flow_requires_confirmation_and_creates_procurement_draft(
     client: httpx.AsyncClient,
 ) -> None:
     token = await login(client, "employee")
@@ -136,7 +136,8 @@ async def test_intent_flow_requires_confirmation_without_procurement_side_effect
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["message"]["status"] == "CONFIRMED"
-    assert confirmed.json()["purchase_request_created"] is False
+    assert confirmed.json()["purchase_request_created"] is True
+    assert confirmed.json()["purchase_request_id"]
 
     messages = await client.get(
         f"/api/v1/chat/sessions/{session_id}/messages", headers=headers(token)

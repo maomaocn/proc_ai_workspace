@@ -973,6 +973,522 @@ footer a {
   }
 }
 
+/* M3 procurement, inventory, and supplier surfaces */
+.business-page {
+  width: min(100% - 2rem, 88rem);
+  margin: 0 auto;
+  padding: 2rem 0 4rem;
+}
+
+.narrow-business-page {
+  max-width: 62rem;
+}
+
+.business-page > .back-link {
+  margin-bottom: 1.5rem;
+}
+
+.business-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  justify-content: space-between;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--text-primary);
+}
+
+.business-header.compact {
+  border-bottom-color: var(--border-subtle);
+}
+
+.business-header h1 {
+  margin-bottom: 0.65rem;
+  font-size: 1.85rem;
+  line-height: 1.15;
+}
+
+.business-header p:last-child {
+  max-width: 46rem;
+  margin-bottom: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.business-page > .inline-error,
+.business-page > .inline-success {
+  margin: 1rem 0 0;
+}
+
+.filter-bar {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.filter-bar label,
+.business-form label,
+.maintenance-form label,
+.inline-create-form label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.business-state {
+  display: grid;
+  min-height: 15rem;
+  place-content: center;
+  justify-items: center;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.business-state.compact {
+  min-height: 7rem;
+}
+
+.business-state h2 {
+  margin-bottom: 0.45rem;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border-bottom: 1px solid var(--text-primary);
+}
+
+.business-table {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.business-table th {
+  height: 3.15rem;
+  border-bottom: 1px solid var(--text-primary);
+  color: var(--text-secondary);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.business-table td {
+  min-height: 4.5rem;
+  padding: 0.9rem 1.2rem 0.9rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.business-table td:first-child {
+  min-width: 12rem;
+}
+
+.business-table a {
+  color: var(--text-primary);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.business-table a:hover {
+  color: var(--brand);
+}
+
+.business-table strong,
+.business-table small {
+  display: block;
+}
+
+.business-table small {
+  margin-top: 0.3rem;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.status-badge.draft {
+  background: #fff5d9;
+  color: var(--warning);
+}
+
+.status-badge.success,
+.status-badge.approved,
+.candidate-checks .ok {
+  background: #e9f7ef;
+  color: var(--success);
+}
+
+.status-badge.pending_approval,
+.status-badge.submitted {
+  background: #ecebff;
+  color: #4338ca;
+}
+
+.status-badge.rejected,
+.candidate-checks .risk {
+  background: #fff0ee;
+  color: var(--danger);
+}
+
+.status-badge.muted,
+.status-badge.cancelled,
+.status-badge.closed {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+}
+
+.money-display {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.business-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+
+.wide-field,
+.form-actions {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.procurement-detail-header {
+  align-items: flex-start;
+}
+
+.procurement-summary-band {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--text-primary);
+}
+
+.procurement-summary-band div {
+  min-width: 0;
+  padding: 1.1rem 0;
+}
+
+.procurement-summary-band span,
+.procurement-summary-band strong {
+  display: block;
+}
+
+.procurement-summary-band span {
+  margin-bottom: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.procurement-summary-band strong {
+  font-size: 1rem;
+}
+
+.procurement-detail-grid {
+  display: grid;
+  gap: 2.5rem;
+  padding-top: 2rem;
+}
+
+.detail-form {
+  padding-bottom: 0;
+}
+
+.plan-control-panel {
+  align-self: start;
+  padding: 1.2rem;
+  border: 1px solid #cbc9ef;
+  border-radius: var(--radius-sm);
+  background: #f5f4ff;
+}
+
+.plan-control-panel h2 {
+  margin-bottom: 0.55rem;
+  font-size: 1.25rem;
+}
+
+.plan-control-panel > p:not(.overline),
+.plan-control-panel > small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.plan-control-panel .primary-button {
+  width: 100%;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.tool-call-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #d9d7ef;
+}
+
+.tool-call-list div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.tool-call-list strong {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+}
+
+.tool-call-list span {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.candidate-section,
+.policy-section,
+.quote-history,
+.maintenance-band {
+  padding-top: 2.5rem;
+}
+
+.candidate-grid {
+  display: grid;
+  gap: 0.9rem;
+  padding-top: 1rem;
+}
+
+.candidate-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgb(255 255 255 / 78%);
+}
+
+.candidate-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.candidate-card h3 {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+}
+
+.candidate-card small {
+  color: var(--text-secondary);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.demo-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: 1.5rem;
+  padding: 0 0.45rem;
+  border-radius: var(--radius-sm);
+  background: #ecebff;
+  color: #4338ca;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.65rem;
+}
+
+.candidate-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.candidate-card dt {
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.candidate-card dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.candidate-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.candidate-checks span {
+  padding: 0.28rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.68rem;
+}
+
+.policy-section .answer-box {
+  margin-top: 1rem;
+}
+
+.maintenance-form {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.toggle-label {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.toggle-label input {
+  width: 1rem;
+  min-height: 1rem;
+  accent-color: var(--brand);
+}
+
+.inventory-table-wrap {
+  margin-top: 1.5rem;
+}
+
+.supplier-layout {
+  display: grid;
+  gap: 2.5rem;
+  padding-top: 2rem;
+}
+
+.inline-create-form {
+  display: grid;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1rem 0;
+}
+
+.supplier-list {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.supplier-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 4.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.supplier-list strong,
+.supplier-list small {
+  display: block;
+}
+
+.supplier-list small {
+  margin-top: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
+
+.quote-form {
+  padding-top: 1rem;
+}
+
+.access-state-page {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  justify-items: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.access-state-page > svg {
+  margin-bottom: 1rem;
+  color: var(--danger);
+}
+
+.access-state-page h1 {
+  margin-bottom: 0.75rem;
+  font-size: 1.75rem;
+}
+
+.access-state-page > p:not(.overline) {
+  max-width: 30rem;
+  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+@media (min-width: 48rem) {
+  .business-header {
+    flex-direction: row;
+    align-items: end;
+  }
+
+  .filter-bar {
+    grid-template-columns: minmax(14rem, 1fr) 12rem auto;
+  }
+
+  .business-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .procurement-summary-band {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .candidate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .maintenance-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .inline-create-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
+@media (min-width: 75rem) {
+  .business-page {
+    width: min(100% - 4rem, 88rem);
+    padding-top: 3rem;
+  }
+
+  .business-header h1 {
+    font-size: 2.25rem;
+  }
+
+  .procurement-detail-grid {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+  }
+
+  .plan-control-panel {
+    position: sticky;
+    top: 2rem;
+  }
+
+  .candidate-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .supplier-layout {
+    grid-template-columns: minmax(20rem, 0.8fr) minmax(28rem, 1.2fr);
+  }
+}
+
 /* M1 application surfaces */
 input,
 textarea,

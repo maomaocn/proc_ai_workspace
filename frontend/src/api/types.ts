@@ -66,6 +66,7 @@ export interface ChatMessage {
   payload_json: (IntentParseResult & {
     confirmed_intent?: PurchaseIntent
     confirmed_at?: string
+    purchase_request_id?: string
   }) | null
   created_at: string
 }
@@ -146,4 +147,102 @@ export interface KnowledgeSearchResponse {
   answer: string
   source: "MOCK" | "REMOTE"
   has_sufficient_evidence: boolean
+}
+
+export interface InventoryItem {
+  id: string
+  sku: string
+  category: string
+  model: string
+  available_qty: number
+  reference_price: string
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Supplier {
+  id: string
+  name: string
+  active: boolean
+  demo_data: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface SupplierQuote {
+  id: string
+  supplier_id: string
+  inventory_item_id: string
+  unit_price: string
+  currency: "CNY"
+  quoted_at: string
+  source_type: "DEMO"
+  supplier: Pick<Supplier, "id" | "name" | "active" | "demo_data">
+  inventory_item: Pick<InventoryItem, "id" | "sku" | "category" | "model" | "available_qty" | "reference_price" | "active">
+  created_at: string
+}
+
+export type PurchaseStatus = "DRAFT" | "SUBMITTED" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "ORDERED" | "RECEIVED" | "CLOSED" | "CANCELLED"
+
+export interface ProcurementDraftInput {
+  title: string
+  category: string
+  item_description: string
+  quantity: number
+  unit_price_limit: string
+  total_budget?: string
+  purpose: string
+  priority: "LOW" | "NORMAL" | "HIGH"
+  notes: string | null
+}
+
+export interface PurchaseCandidate {
+  id: string
+  request_id: string
+  item_id: string
+  supplier_id: string
+  quantity: number
+  unit_price: string
+  total_price: string
+  source_quote_id: string
+  item: Pick<InventoryItem, "id" | "sku" | "category" | "model" | "available_qty" | "reference_price" | "active">
+  supplier: Pick<Supplier, "id" | "name" | "active" | "demo_data">
+  source_quote: SupplierQuote
+  stock_sufficient: boolean
+  within_unit_limit: boolean
+  within_total_budget: boolean
+}
+
+export interface Procurement {
+  id: string
+  requester_id: string
+  requester: { id: string; username: string }
+  title: string
+  category: string
+  item_description: string
+  quantity: number
+  unit_price_limit: string
+  total_budget: string
+  purpose: string
+  priority: "LOW" | "NORMAL" | "HIGH"
+  notes: string | null
+  status: PurchaseStatus
+  version: number
+  linked_run_id: string | null
+  candidates?: PurchaseCandidate[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ProcurementPlan {
+  procurement: Procurement & { candidates: PurchaseCandidate[] }
+  policy: KnowledgeSearchResponse
+  tool_calls: Array<{
+    name: string
+    duration_ms: number
+    source: "DATABASE" | "MOCK_RAG"
+    item_count: number
+  }>
+  source: "DEMO"
 }

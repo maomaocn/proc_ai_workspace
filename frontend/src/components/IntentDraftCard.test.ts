@@ -1,4 +1,4 @@
-import { mount } from "@vue/test-utils"
+import { mount, RouterLinkStub } from "@vue/test-utils"
 import { describe, expect, it } from "vitest"
 
 import type { ChatMessage } from "../api/types"
@@ -52,18 +52,25 @@ describe("IntentDraftCard", () => {
     })
   })
 
-  it("renders confirmed state without creating a procurement request", () => {
+  it("renders confirmed state with its procurement draft link", () => {
     const confirmed = message("CONFIRMED")
     if (confirmed.payload_json) {
       confirmed.payload_json.confirmed_intent = {
         ...confirmed.payload_json.intent,
         purpose: "研发办公",
       }
+      confirmed.payload_json.purchase_request_id = "procurement-1"
     }
-    const wrapper = mount(IntentDraftCard, { props: { message: confirmed } })
+    const wrapper = mount(IntentDraftCard, {
+      props: { message: confirmed },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
 
     expect(wrapper.text()).toContain("已确认")
-    expect(wrapper.text()).toContain("M1 不创建或提交采购申请")
+    expect(wrapper.text()).toContain("已创建采购草稿")
+    expect(wrapper.getComponent(RouterLinkStub).props("to")).toBe(
+      "/procurements/procurement-1",
+    )
     expect(wrapper.find("button[type='submit']").exists()).toBe(false)
   })
 })

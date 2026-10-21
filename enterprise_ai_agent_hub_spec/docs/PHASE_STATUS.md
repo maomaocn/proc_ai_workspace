@@ -7,7 +7,7 @@
 | M0 | DONE | 2026-10-21：Ruff、Pytest 6 项、前端 lint/typecheck/build/audit、Compose 三服务、Alembic、健康探针及四档响应式验收通过 | Starlette TestClient 与 ESLint 9 生命周期存在上游弃用提示，不影响当前验收 |
 | M1 | DONE | 2026-10-21：Ruff、Pytest 15 项、前端 lint/typecheck/test/build/audit、真实 API 权限与会话隔离、Mock 意图解析和浏览器确认流程通过 | 内置浏览器本轮未提供移动视口缩放；移动端依赖响应式 CSS 与构建检查，后续补充真实设备回归 |
 | M2 | DONE | 2026-10-21：Ruff、Pytest 25 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器 RAG/ACL/删除验收通过 | 扫描版 PDF 暂不含 OCR；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
-| M3 | NOT_STARTED | 无 | 依赖 M2 |
+| M3 | DONE | 2026-10-22：Ruff、Pytest 29 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器采购/工具链验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
 | M4 | NOT_STARTED | 无 | 依赖 M3 |
 | M5 | NOT_STARTED | 无 | 依赖 M4 |
 | M6 | NOT_STARTED | 无 | 依赖 M5 |
@@ -42,3 +42,15 @@
 - 后端：主机 Conda 环境和容器内 `ruff check .` 均通过；连接 Compose PostgreSQL 的 `pytest -q` 为 25 passed；Alembic 为 `20261021_0003 (head)` 且 `alembic check` 无 schema 漂移。
 - 前端：`npm run lint`、`npm run typecheck`、`npm run test -- --run`、`npm run build` 通过；2 个 Vitest 文件、4 项测试通过，完整 `npm audit` 为 0 vulnerabilities。
 - 运行验收：三服务均为 healthy；真实 API 完成示例制度上传、命中引用、ACL 403、非法类型 415、删除后不可检索；浏览器完成员工检索、引用详情、无依据拒答和管理员控件检查。
+
+## M3 验收记录（2026-10-22）
+
+- 采购数据：新增库存、供应商、DEMO 报价、采购申请和候选方案五张表；Alembic 为 `20261021_0004 (head)`，`alembic check` 无 schema 漂移，迁移只做增量建表。
+- 金额规则：采购草稿、报价和候选金额使用 PostgreSQL `NUMERIC(14,2)` 与 Python `Decimal`；真实 API 验证 10×6000=`60000.00`，最低候选报价 5680×10=`56800.00`。
+- 草稿闭环：支持采购列表、新建、详情、版本化编辑和本人资源隔离；确认结构化采购意图会在同一事务创建且只创建一个采购草稿，重复确认幂等返回原草稿。
+- Tool Calling：只读注册表实现 `inventory.search`、`supplier.quote`、`policy.search`，具备 Pydantic schema、角色白名单、超时和稳定错误；`TECH_ADMIN` 的业务工具与供应商访问实测返回 403。
+- 前端页面：采购列表、新建、详情编辑、候选方案、工具轨迹、制度引用、库存目录和供应商报价页面可用；浏览器实测展示 3 条报价候选及库存/预算风险。
+- 后端：主机 Conda 环境和容器内 `ruff check .` 均通过；主机与容器连接 Compose PostgreSQL 的 `pytest` 均为 29 passed；仅有 Starlette TestClient 的上游 AnyIO 弃用提示。
+- 前端：`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build` 通过；3 个 Vitest 文件、5 项测试通过，完整 `npm audit` 为 0 vulnerabilities。
+- 运行验收：PostgreSQL、FastAPI、Vue/Nginx 三服务均为 healthy；`/healthz`、`/readyz` 和前端返回 200，服务版本为 0.4.0；真实 HTTP 与浏览器采购链路通过。
+- 范围控制：未实现提交/取消、审批、LangGraph、履约、MCP 或 Mini Agent Harness，M4-M6 仍保持 NOT_STARTED。

@@ -6,6 +6,13 @@ from app.models.knowledge import (
     KnowledgeCollection,
     KnowledgeDocument,
 )
+from app.models.procurement import (
+    InventoryItem,
+    PurchaseCandidate,
+    PurchaseRequest,
+    Supplier,
+    SupplierQuote,
+)
 
 __all__ = [
     "ChatMessage",
@@ -15,6 +22,11 @@ __all__ = [
     "KnowledgeChunk",
     "KnowledgeCollection",
     "KnowledgeDocument",
+    "InventoryItem",
+    "PurchaseCandidate",
+    "PurchaseRequest",
+    "Supplier",
+    "SupplierQuote",
     "User",
     "UserRole",
 ]

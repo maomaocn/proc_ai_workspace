@@ -4,7 +4,7 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 当前仓库完成
 [V1.1 实施计划](enterprise_ai_agent_hub_spec/docs/IMPLEMENTATION_PLAN.md)的
 **M0：工程骨架与本地环境**、**M1：身份、会话与 LLM 意图解析**和
-**M2：企业知识库与 RAG**。
+**M2：企业知识库与 RAG**、**M3：采购业务与 Tool Calling**。
 
 需求入口位于 [`enterprise_ai_agent_hub_spec/README.md`](enterprise_ai_agent_hub_spec/README.md)，
 阶段验收状态记录在
@@ -26,9 +26,13 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 - 知识库 ACL、PDF/TXT/MD 上传校验、SHA-256 去重、解析和分块
 - 默认可复现 Mock Embedding、持久化 Chroma 检索和真实来源引用
 - 知识库文档列表、详情、上传、重建索引、删除及检索测试页面
+- 库存、供应商、DEMO 报价、采购草稿和候选方案数据模型及 API
+- 服务端 `Decimal` 金额计算、草稿版本冲突检查和资源所有权隔离
+- 只读 Tool Registry：`inventory.search`、`supplier.quote`、`policy.search`
+- 采购列表、新建、详情/编辑、方案生成、库存和供应商报价页面
 
-M2 不创建或提交采购申请，也不包含库存报价、Tool Calling、审批、LangGraph、MCP
-或 Harness；这些功能按 M3-M6 逐步实现。
+M3 只创建和编辑采购草稿、生成本地候选方案，不提交审批，不启动 LangGraph，
+也不接入真实采购平台、MCP 或 Mini Agent Harness；这些功能按 M4-M6 逐步实现。
 
 ## 环境要求
 
@@ -98,7 +102,7 @@ alembic upgrade head
 ```
 
 M1 迁移新增部门、用户、多角色、会话和消息表；M2 迁移新增知识库、ACL、文档和分块
-表。启动脚本在非生产环境执行幂等
+表；M3 迁移新增库存、供应商、报价、采购申请和候选方案表。启动脚本在非生产环境执行幂等
 演示 seed；它只补充缺失记录，不清空或覆盖已有用户。生产环境必须设置
 `SEED_DEMO_DATA=false` 并替换 `JWT_SECRET_KEY`。
 进入后端目录后可手动检查迁移：
@@ -162,6 +166,26 @@ enterprise_ai_agent_hub_spec/sample_data/policies/采购管理制度.md
 M2 范围内。上传内容保存在 `knowledge_uploads` 卷，向量保存在 `chroma_data` 卷；文档
 软删除后立即从检索中过滤，并同步清理对应向量和上传文件。
 
+## M3 采购与工具演示
+
+Seed 会幂等创建 3 个库存商品、2 个 DEMO 供应商和 4 条 DEMO 报价。演示数据只用于
+本地验收，不代表实时库存或市场价格：
+
+- `employee`：创建、编辑本人采购草稿并生成候选方案；确认对话意图后也会创建草稿。
+- `procurement`：查看和维护供应商与 DEMO 报价。
+- `admin`：查看全部采购草稿并维护库存、供应商与报价。
+- `techadmin`：不自动获得业务工具或供应商数据权限，用于验证职责隔离。
+
+推荐流程：
+
+1. 使用 `employee / DemoPass123!` 登录，打开“采购申请”并新建 10 台、单价上限
+   6000 元的笔记本草稿；服务端应返回总预算 `60000.00`。
+2. 在详情页生成候选方案，查看库存、DEMO 报价、风险标记、只读工具轨迹和制度引用。
+3. 使用 `procurement / DemoPass123!` 登录“供应商报价”，查看或补充本地 DEMO 报价。
+
+工具输入先经过 Pydantic schema 校验，再检查角色白名单和超时；M3 注册表只接受只读工具。
+采购金额由后端 PostgreSQL `NUMERIC(14,2)` 与 Python `Decimal` 计算，前端只负责展示。
+
 也可以使用项目内虚拟环境：
 
 ```bash
@@ -221,7 +245,7 @@ npm run build
 └── compose.yaml
 ```
 
-## M2 验收
+## M3 验收
 
 ```bash
 docker compose config
@@ -229,6 +253,8 @@ POSTGRES_PORT=55432 docker compose up --build -d
 curl --fail http://localhost:8000/healthz
 curl --fail http://localhost:8000/readyz
 POSTGRES_PORT=55432 docker compose exec api ruff check .
+POSTGRES_PORT=55432 docker compose exec api alembic current
+POSTGRES_PORT=55432 docker compose exec api alembic check
 POSTGRES_PORT=55432 docker compose exec api pytest
 npm --prefix frontend run lint
 npm --prefix frontend run typecheck

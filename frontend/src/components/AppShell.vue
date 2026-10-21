@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { BookOpen, LayoutDashboard, LogOut, Menu, MessageSquareText, X } from "@lucide/vue"
-import { ref } from "vue"
+import { BookOpen, Boxes, FileText, LayoutDashboard, LogOut, Menu, MessageSquareText, Store, X } from "@lucide/vue"
+import { computed, ref } from "vue"
 import { useRouter } from "vue-router"
 
 import { auth } from "../auth/store"
 
 const router = useRouter()
 const navigationOpen = ref(false)
+const canManageSuppliers = computed(() => auth.user.value?.roles.some(
+  role => role === "PROCUREMENT" || role === "ADMIN",
+))
 
 async function signOut(): Promise<void> {
   auth.logout()
@@ -75,6 +78,28 @@ async function signOut(): Promise<void> {
         >
           <BookOpen :size="18" />
           企业知识库
+        </RouterLink>
+        <RouterLink
+          to="/procurements"
+          @click="navigationOpen = false"
+        >
+          <FileText :size="18" />
+          采购申请
+        </RouterLink>
+        <RouterLink
+          to="/inventory"
+          @click="navigationOpen = false"
+        >
+          <Boxes :size="18" />
+          库存目录
+        </RouterLink>
+        <RouterLink
+          v-if="canManageSuppliers"
+          to="/suppliers"
+          @click="navigationOpen = false"
+        >
+          <Store :size="18" />
+          供应商报价
         </RouterLink>
       </nav>
 

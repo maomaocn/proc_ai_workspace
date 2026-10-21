@@ -48,7 +48,7 @@ async function submit(): Promise<void> {
         <p>使用企业身份进入工作台，AI 只整理需求，业务确认始终由你完成。</p>
       </div>
       <p class="environment-label">
-        M1 · IDENTITY & INTENT
+        M3 · PROCUREMENT & TOOLS
       </p>
     </section>
 

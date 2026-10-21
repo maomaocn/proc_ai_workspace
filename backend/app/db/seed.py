@@ -1,4 +1,6 @@
 import asyncio
+from datetime import UTC, datetime
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -7,6 +9,7 @@ from app.core.security import hash_password
 from app.db.session import SessionFactory
 from app.models.identity import Department, User, UserRole
 from app.models.knowledge import KnowledgeACL, KnowledgeCollection
+from app.models.procurement import InventoryItem, Supplier, SupplierQuote
 
 DEMO_PASSWORD = "DemoPass123!"
 DEMO_USERS = {
@@ -16,6 +19,19 @@ DEMO_USERS = {
     "admin": ("信息技术部", {"EMPLOYEE", "ADMIN"}),
     "techadmin": ("信息技术部", {"TECH_ADMIN"}),
 }
+DEMO_INVENTORY = {
+    "LT-THINK-14": ("笔记本电脑", "ThinkBook 14 企业版", 25, Decimal("5799.00")),
+    "LT-LAT-3450": ("笔记本电脑", "Latitude 3450 商务版", 8, Decimal("6299.00")),
+    "MON-27-QHD": ("显示器", "27 英寸 QHD 办公显示器", 30, Decimal("1699.00")),
+}
+DEMO_SUPPLIERS = ("示例供应商·华东办公", "示例供应商·企业设备")
+DEMO_QUOTES = (
+    ("示例供应商·华东办公", "LT-THINK-14", Decimal("5680.00")),
+    ("示例供应商·企业设备", "LT-THINK-14", Decimal("5920.00")),
+    ("示例供应商·企业设备", "LT-LAT-3450", Decimal("6180.00")),
+    ("示例供应商·华东办公", "MON-27-QHD", Decimal("1580.00")),
+)
+DEMO_QUOTED_AT = datetime(2026, 10, 21, 8, 0, tzinfo=UTC)
 
 
 async def seed_demo_data() -> None:
@@ -82,6 +98,55 @@ async def seed_demo_data() -> None:
                     permission=employee_read[2],
                 )
             )
+
+        inventory: dict[str, InventoryItem] = {}
+        for sku, (category, model, available_qty, reference_price) in DEMO_INVENTORY.items():
+            item = await session.scalar(select(InventoryItem).where(InventoryItem.sku == sku))
+            if item is None:
+                item = InventoryItem(
+                    sku=sku,
+                    category=category,
+                    model=model,
+                    available_qty=available_qty,
+                    reference_price=reference_price,
+                    active=True,
+                )
+                session.add(item)
+                await session.flush()
+            inventory[sku] = item
+
+        suppliers: dict[str, Supplier] = {}
+        for supplier_name in DEMO_SUPPLIERS:
+            supplier = await session.scalar(
+                select(Supplier).where(Supplier.name == supplier_name)
+            )
+            if supplier is None:
+                supplier = Supplier(name=supplier_name, active=True, demo_data=True)
+                session.add(supplier)
+                await session.flush()
+            suppliers[supplier_name] = supplier
+
+        for supplier_name, sku, unit_price in DEMO_QUOTES:
+            supplier = suppliers[supplier_name]
+            item = inventory[sku]
+            quote = await session.scalar(
+                select(SupplierQuote).where(
+                    SupplierQuote.supplier_id == supplier.id,
+                    SupplierQuote.inventory_item_id == item.id,
+                    SupplierQuote.quoted_at == DEMO_QUOTED_AT,
+                )
+            )
+            if quote is None:
+                session.add(
+                    SupplierQuote(
+                        supplier_id=supplier.id,
+                        inventory_item_id=item.id,
+                        unit_price=unit_price,
+                        currency="CNY",
+                        quoted_at=DEMO_QUOTED_AT,
+                        source_type="DEMO",
+                    )
+                )
         await session.commit()
 
 

@@ -7,9 +7,15 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
   KnowledgeSearchResponse,
+  InventoryItem,
   LoginResponse,
   Page,
+  Procurement,
+  ProcurementDraftInput,
+  ProcurementPlan,
   PurchaseIntent,
+  Supplier,
+  SupplierQuote,
   User,
 } from "./types"
 
@@ -81,7 +87,7 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
   confirmIntent: (messageId: string, intent: PurchaseIntent) =>
-    request<{ message: ChatMessage; confirmed_intent: PurchaseIntent; purchase_request_created: false }>(
+    request<{ message: ChatMessage; confirmed_intent: PurchaseIntent; purchase_request_created: boolean; purchase_request_id: string }>(
       `/chat/messages/${messageId}/confirm-intent`,
       { method: "POST", body: JSON.stringify({ intent }) },
     ),
@@ -107,4 +113,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ collection_id: collectionId, query, top_k: topK }),
     }),
+  procurements: (params = "page=1&page_size=100") =>
+    request<Page<Procurement>>(`/procurements?${params}`),
+  procurement: (requestId: string) => request<Procurement>(`/procurements/${requestId}`),
+  createProcurement: (payload: ProcurementDraftInput) =>
+    request<Procurement>("/procurements", { method: "POST", body: JSON.stringify(payload) }),
+  updateProcurement: (requestId: string, payload: Partial<ProcurementDraftInput> & { version: number }) =>
+    request<Procurement>(`/procurements/${requestId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  buildProcurementPlan: (requestId: string) =>
+    request<ProcurementPlan>(`/procurements/${requestId}/plan`, { method: "POST" }),
+  inventoryItems: (params = "page=1&page_size=100") =>
+    request<Page<InventoryItem>>(`/inventory/items?${params}`),
+  createInventoryItem: (payload: Omit<InventoryItem, "id" | "created_at" | "updated_at">) =>
+    request<InventoryItem>("/inventory/items", { method: "POST", body: JSON.stringify(payload) }),
+  updateInventoryItem: (itemId: string, payload: Partial<InventoryItem>) =>
+    request<InventoryItem>(`/inventory/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  suppliers: () => request<Page<Supplier>>("/suppliers?page=1&page_size=100"),
+  createSupplier: (payload: { name: string; active: boolean }) =>
+    request<Supplier>("/suppliers", { method: "POST", body: JSON.stringify(payload) }),
+  updateSupplier: (supplierId: string, payload: { name?: string; active?: boolean }) =>
+    request<Supplier>(`/suppliers/${supplierId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  supplierQuotes: () => request<Page<SupplierQuote>>("/supplier-quotes?page=1&page_size=100"),
+  createSupplierQuote: (payload: { supplier_id: string; inventory_item_id: string; unit_price: string; quoted_at: string }) =>
+    request<SupplierQuote>("/supplier-quotes", { method: "POST", body: JSON.stringify(payload) }),
 }

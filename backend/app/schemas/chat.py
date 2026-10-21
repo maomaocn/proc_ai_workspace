@@ -110,4 +110,5 @@ class IntentConfirmationRequest(BaseModel):
 class IntentConfirmationResponse(BaseModel):
     message: ChatMessageRead
     confirmed_intent: PurchaseIntent
-    purchase_request_created: Literal[False] = False
+    purchase_request_created: bool
+    purchase_request_id: uuid.UUID

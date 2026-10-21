@@ -166,7 +166,13 @@ function submit(): void {
           class="confirmation-note"
         >
           <FileCheck2 :size="17" />
-          已保存确认结果；M1 不创建或提交采购申请。
+          已创建采购草稿，尚未提交审批。
+          <RouterLink
+            v-if="message.payload_json?.purchase_request_id"
+            :to="`/procurements/${message.payload_json.purchase_request_id}`"
+          >
+            查看草稿
+          </RouterLink>
         </p>
         <button
           v-else

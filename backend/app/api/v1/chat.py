@@ -10,6 +10,7 @@ from app.core.errors import AppError
 from app.llm import LLMProvider, ModelProviderError, get_llm_provider
 from app.llm.intents import FIELD_LABELS, REQUIRED_INTENT_FIELDS
 from app.models.chat import ChatMessage, ChatSession
+from app.models.procurement import PurchaseRequest
 from app.schemas.chat import (
     ChatMessageCreate,
     ChatMessageRead,
@@ -23,6 +24,7 @@ from app.schemas.chat import (
     IntentParseResponse,
 )
 from app.schemas.common import Page
+from app.services.procurement import procurement_service
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 LLMDependency = Annotated[LLMProvider, Depends(get_llm_provider)]
@@ -194,7 +196,9 @@ async def confirm_intent(
     user: CurrentUser,
     session: DatabaseSession,
 ) -> IntentConfirmationResponse:
-    message = await session.get(ChatMessage, message_id)
+    message = await session.scalar(
+        select(ChatMessage).where(ChatMessage.id == message_id).with_for_update()
+    )
     if message is None:
         raise AppError(404, "NOT_FOUND", "消息不存在")
     chat_session = await session.get(ChatSession, message.session_id)
@@ -202,6 +206,22 @@ async def confirm_intent(
         raise AppError(403, "FORBIDDEN", "无权确认此采购意图")
     if message.sender != "ASSISTANT" or message.payload_json is None:
         raise AppError(409, "STATE_CONFLICT", "该消息不包含可确认的采购意图")
+
+    existing_id = message.payload_json.get("purchase_request_id")
+    if existing_id:
+        existing_intent = message.payload_json.get("confirmed_intent")
+        submitted_intent = body.intent.model_dump(mode="json")
+        if existing_intent != submitted_intent:
+            raise AppError(409, "STATE_CONFLICT", "该采购意图已按其他内容确认")
+        purchase = await session.get(PurchaseRequest, uuid.UUID(existing_id))
+        if purchase is None or purchase.requester_id != user.id:
+            raise AppError(409, "STATE_CONFLICT", "已确认采购草稿状态异常")
+        return IntentConfirmationResponse(
+            message=ChatMessageRead.model_validate(message),
+            confirmed_intent=body.intent,
+            purchase_request_created=False,
+            purchase_request_id=purchase.id,
+        )
 
     missing = [field for field in REQUIRED_INTENT_FIELDS if getattr(body.intent, field) is None]
     if missing:
@@ -213,11 +233,15 @@ async def confirm_intent(
             {"missing_fields": missing, "missing_labels": labels},
         )
 
+    purchase = procurement_service.from_confirmed_intent(user, body.intent, message.run_id)
+    session.add(purchase)
+    await session.flush()
     message.status = "CONFIRMED"
     message.payload_json = {
         **message.payload_json,
         "confirmed_intent": body.intent.model_dump(mode="json"),
         "confirmed_at": datetime.now(UTC).isoformat(),
+        "purchase_request_id": str(purchase.id),
     }
     chat_session.updated_at = datetime.now(UTC)
     await session.commit()
@@ -225,4 +249,6 @@ async def confirm_intent(
     return IntentConfirmationResponse(
         message=ChatMessageRead.model_validate(message),
         confirmed_intent=body.intent,
+        purchase_request_created=True,
+        purchase_request_id=purchase.id,
     )

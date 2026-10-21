@@ -53,9 +53,9 @@ onMounted(load)
           CURRENT SCOPE
         </p>
         <h2 id="workspace-summary">
-          身份已验证，Mock 模型已就绪
+          采购草稿与只读工具已就绪
         </h2>
-        <p>当前阶段支持会话、意图解析与人工确认，不会自动创建或提交采购申请。</p>
+        <p>确认采购意图会创建草稿；库存、报价与制度工具只读运行，提交审批将在 M4 开放。</p>
       </div>
       <div class="identity-summary">
         <span><ShieldCheck :size="18" />{{ auth.user.value?.department.name }}</span>
