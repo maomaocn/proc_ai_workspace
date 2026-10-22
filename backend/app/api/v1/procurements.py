@@ -1,12 +1,18 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query, Request
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser, DatabaseSession
 from app.models.procurement import PurchaseRequest
+from app.schemas.approval import (
+    ApprovalPreview,
+    ProcurementStateResponse,
+    ProcurementSubmissionResponse,
+    ProcurementVersionRequest,
+)
 from app.schemas.common import Page
 from app.schemas.procurement import (
     ProcurementPlanResponse,
@@ -15,9 +21,11 @@ from app.schemas.procurement import (
     PurchaseRequestRead,
     PurchaseRequestUpdate,
 )
+from app.services.approval import approval_service
 from app.services.procurement import procurement_service
 
 router = APIRouter(prefix="/procurements", tags=["Procurements"])
+IdempotencyKey = Annotated[uuid.UUID, Header(alias="Idempotency-Key")]
 
 
 @router.get("", response_model=Page[PurchaseRequestRead])
@@ -39,9 +47,9 @@ async def list_procurements(
         filters.append(
             or_(PurchaseRequest.title.ilike(pattern), PurchaseRequest.category.ilike(pattern))
         )
-    total = await session.scalar(
-        select(func.count()).select_from(PurchaseRequest).where(*filters)
-    ) or 0
+    total = (
+        await session.scalar(select(func.count()).select_from(PurchaseRequest).where(*filters)) or 0
+    )
     items = list(
         (
             await session.scalars(
@@ -96,3 +104,49 @@ async def build_procurement_plan(
 ) -> ProcurementPlanResponse:
     purchase = await procurement_service.get(session, request_id, for_update=True)
     return await procurement_service.build_plan(session, purchase, user)
+
+
+@router.get("/{request_id}/approval-preview", response_model=ApprovalPreview)
+async def preview_approval(
+    request_id: uuid.UUID, user: CurrentUser, session: DatabaseSession
+) -> ApprovalPreview:
+    purchase = await procurement_service.get(session, request_id)
+    return await approval_service.preview(session, purchase, user)
+
+
+@router.post("/{request_id}/submit", response_model=ProcurementSubmissionResponse)
+async def submit_procurement(
+    request_id: uuid.UUID,
+    body: ProcurementVersionRequest,
+    idempotency_key: IdempotencyKey,
+    request: Request,
+    user: CurrentUser,
+    session: DatabaseSession,
+) -> ProcurementSubmissionResponse:
+    return await approval_service.submit(
+        session,
+        request_id,
+        body.version,
+        idempotency_key,
+        user,
+        request.state.request_id,
+    )
+
+
+@router.post("/{request_id}/cancel", response_model=ProcurementStateResponse)
+async def cancel_procurement(
+    request_id: uuid.UUID,
+    body: ProcurementVersionRequest,
+    idempotency_key: IdempotencyKey,
+    request: Request,
+    user: CurrentUser,
+    session: DatabaseSession,
+) -> ProcurementStateResponse:
+    return await approval_service.cancel(
+        session,
+        request_id,
+        body.version,
+        idempotency_key,
+        user,
+        request.state.request_id,
+    )

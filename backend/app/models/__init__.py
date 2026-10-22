@@ -1,3 +1,13 @@
+from app.models.approval import (
+    AgentRun,
+    AgentStep,
+    ApprovalDecision,
+    ApprovalRule,
+    ApprovalTask,
+    AuditEvent,
+    IdempotencyRecord,
+    WorkflowResumeEvent,
+)
 from app.models.chat import ChatMessage, ChatSession
 from app.models.identity import Department, User, UserRole
 from app.models.knowledge import (
@@ -15,6 +25,12 @@ from app.models.procurement import (
 )
 
 __all__ = [
+    "AgentRun",
+    "AgentStep",
+    "ApprovalDecision",
+    "ApprovalRule",
+    "ApprovalTask",
+    "AuditEvent",
     "ChatMessage",
     "ChatSession",
     "Department",
@@ -23,10 +39,12 @@ __all__ = [
     "KnowledgeCollection",
     "KnowledgeDocument",
     "InventoryItem",
+    "IdempotencyRecord",
     "PurchaseCandidate",
     "PurchaseRequest",
     "Supplier",
     "SupplierQuote",
     "User",
     "UserRole",
+    "WorkflowResumeEvent",
 ]

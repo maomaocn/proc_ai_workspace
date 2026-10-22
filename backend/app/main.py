@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.agent import workflow_runtime
 from app.api.v1 import router as api_v1_router
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
@@ -30,8 +31,12 @@ class ReadinessResponse(HealthResponse):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    yield
-    await close_database()
+    await workflow_runtime.start()
+    try:
+        yield
+    finally:
+        await workflow_runtime.close()
+        await close_database()
 
 
 settings.validate_runtime_security()
@@ -39,7 +44,7 @@ settings.validate_runtime_security()
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Enterprise AI Agent Hub API through M3 procurement and read-only tools",
+    description="Enterprise AI Agent Hub API through M4 procurement approval workflows",
     lifespan=lifespan,
 )
 register_exception_handlers(app)

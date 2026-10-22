@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ArrowRight, MessageSquarePlus, ShieldCheck, Sparkles } from "@lucide/vue"
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 
 import { api, ApiError } from "../api/client"
 import type { ChatSession } from "../api/types"
 import { auth } from "../auth/store"
 
 const sessions = ref<ChatSession[]>([])
+const pendingApprovals = ref(0)
 const loading = ref(true)
 const error = ref("")
 
@@ -14,7 +15,14 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = ""
   try {
-    sessions.value = (await api.sessions()).items.slice(0, 4)
+    const [sessionPage, approvalPage] = await Promise.all([
+      api.sessions(),
+      auth.user.value?.roles.includes("APPROVER")
+        ? api.approvalTasks("pending")
+        : Promise.resolve(null),
+    ])
+    sessions.value = sessionPage.items.slice(0, 4)
+    pendingApprovals.value = approvalPage?.total || 0
   } catch (caught) {
     error.value = caught instanceof ApiError ? caught.message : "无法读取工作台数据"
   } finally {
@@ -23,6 +31,8 @@ async function load(): Promise<void> {
 }
 
 onMounted(load)
+
+const canApprove = computed(() => auth.user.value?.roles.includes("APPROVER"))
 </script>
 
 <template>
@@ -53,10 +63,19 @@ onMounted(load)
           CURRENT SCOPE
         </p>
         <h2 id="workspace-summary">
-          采购草稿与只读工具已就绪
+          采购工作流与人工审批已就绪
         </h2>
-        <p>确认采购意图会创建草稿；库存、报价与制度工具只读运行，提交审批将在 M4 开放。</p>
+        <p>采购草稿可生成候选方案并启动持久化审批流程；每次决策均保留审计记录。</p>
       </div>
+      <RouterLink
+        v-if="canApprove"
+        class="dashboard-approval-link"
+        to="/approvals"
+      >
+        <span>待我审批</span>
+        <strong>{{ pendingApprovals }}</strong>
+        <ArrowRight :size="17" />
+      </RouterLink>
       <div class="identity-summary">
         <span><ShieldCheck :size="18" />{{ auth.user.value?.department.name }}</span>
         <div class="role-list">

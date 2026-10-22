@@ -14,13 +14,14 @@ class Settings(BaseSettings):
 
     app_name: str = "Enterprise AI Agent Hub"
     app_env: Literal["local", "test", "staging", "production"] = "local"
-    app_version: str = "0.4.0"
+    app_version: str = "0.5.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
     database_url: str = "postgresql+asyncpg://app:app@localhost:5432/enterprise_ai_agent_hub"
+    checkpoint_database_url: str = ""
     database_pool_size: int = Field(default=5, ge=1)
     database_max_overflow: int = Field(default=10, ge=0)
     database_connect_timeout_seconds: int = Field(default=5, ge=1, le=60)
@@ -58,6 +59,12 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def effective_checkpoint_database_url(self) -> str:
+        if self.checkpoint_database_url:
+            return self.checkpoint_database_url
+        return self.database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
 
     def validate_runtime_security(self) -> None:
         if self.app_env == "production" and self.jwt_secret_key.startswith("local-demo"):

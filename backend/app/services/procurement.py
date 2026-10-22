@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import AppError
+from app.models.approval import AgentRun, ApprovalDecision, ApprovalTask, AuditEvent
 from app.models.identity import User
 from app.models.procurement import PurchaseCandidate, PurchaseRequest, SupplierQuote
 from app.schemas.chat import PurchaseIntent
@@ -45,18 +46,19 @@ class ProcurementService:
             .execution_options(populate_existing=True)
             .options(
                 selectinload(PurchaseRequest.requester),
-                selectinload(PurchaseRequest.candidates).selectinload(
-                    PurchaseCandidate.item
-                ),
-                selectinload(PurchaseRequest.candidates).selectinload(
-                    PurchaseCandidate.supplier
-                ),
+                selectinload(PurchaseRequest.candidates).selectinload(PurchaseCandidate.item),
+                selectinload(PurchaseRequest.candidates).selectinload(PurchaseCandidate.supplier),
                 selectinload(PurchaseRequest.candidates)
                 .selectinload(PurchaseCandidate.source_quote)
                 .selectinload(SupplierQuote.supplier),
                 selectinload(PurchaseRequest.candidates)
                 .selectinload(PurchaseCandidate.source_quote)
                 .selectinload(SupplierQuote.inventory_item),
+                selectinload(PurchaseRequest.approval_tasks).selectinload(ApprovalTask.assignee),
+                selectinload(PurchaseRequest.approval_tasks)
+                .selectinload(ApprovalTask.decisions)
+                .selectinload(ApprovalDecision.actor),
+                selectinload(PurchaseRequest.workflow_runs).selectinload(AgentRun.steps),
             )
         )
         if for_update:
@@ -64,6 +66,18 @@ class ProcurementService:
         purchase = await session.scalar(query)
         if purchase is None:
             raise AppError(404, "NOT_FOUND", "采购申请不存在")
+        purchase._audit_events = list(
+            (
+                await session.scalars(
+                    select(AuditEvent)
+                    .where(
+                        AuditEvent.resource_type == "PURCHASE_REQUEST",
+                        AuditEvent.resource_id == request_id,
+                    )
+                    .order_by(AuditEvent.created_at)
+                )
+            ).all()
+        )
         return purchase
 
     def require_read(self, purchase: PurchaseRequest, user: User) -> None:
@@ -245,6 +259,9 @@ class ProcurementService:
             "created_at": purchase.created_at,
             "updated_at": purchase.updated_at,
             "candidates": [self._candidate(item, purchase) for item in purchase.candidates],
+            "approval_tasks": purchase.approval_tasks,
+            "workflow_run": purchase.workflow_runs[-1] if purchase.workflow_runs else None,
+            "audit_events": getattr(purchase, "_audit_events", []),
         }
         return PurchaseRequestDetail.model_validate(payload)
 

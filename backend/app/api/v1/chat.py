@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 
 from app.api.deps import CurrentUser, DatabaseSession
 from app.core.errors import AppError
@@ -116,7 +116,11 @@ async def list_messages(
     query = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.asc())
+        .order_by(
+            ChatMessage.created_at.asc(),
+            case((ChatMessage.sender == "USER", 0), else_=1),
+            ChatMessage.id.asc(),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     )

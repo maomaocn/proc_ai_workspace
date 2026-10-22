@@ -1,5 +1,17 @@
 <script setup lang="ts">
-import { BookOpen, Boxes, FileText, LayoutDashboard, LogOut, Menu, MessageSquareText, Store, X } from "@lucide/vue"
+import {
+  BookOpen,
+  Boxes,
+  ClipboardCheck,
+  FileText,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Menu,
+  MessageSquareText,
+  Store,
+  X,
+} from "@lucide/vue"
 import { computed, ref } from "vue"
 import { useRouter } from "vue-router"
 
@@ -10,6 +22,8 @@ const navigationOpen = ref(false)
 const canManageSuppliers = computed(() => auth.user.value?.roles.some(
   role => role === "PROCUREMENT" || role === "ADMIN",
 ))
+const canApprove = computed(() => auth.user.value?.roles.includes("APPROVER"))
+const canAdminister = computed(() => auth.user.value?.roles.includes("ADMIN"))
 
 async function signOut(): Promise<void> {
   auth.logout()
@@ -94,12 +108,28 @@ async function signOut(): Promise<void> {
           库存目录
         </RouterLink>
         <RouterLink
+          v-if="canApprove"
+          to="/approvals"
+          @click="navigationOpen = false"
+        >
+          <ClipboardCheck :size="18" />
+          我的审批
+        </RouterLink>
+        <RouterLink
           v-if="canManageSuppliers"
           to="/suppliers"
           @click="navigationOpen = false"
         >
           <Store :size="18" />
           供应商报价
+        </RouterLink>
+        <RouterLink
+          v-if="canAdminister"
+          to="/admin/approval-rules"
+          @click="navigationOpen = false"
+        >
+          <ListChecks :size="18" />
+          审批规则
         </RouterLink>
       </nav>
 

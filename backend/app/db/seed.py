@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password
 from app.db.session import SessionFactory
+from app.models.approval import ApprovalRule
 from app.models.identity import Department, User, UserRole
 from app.models.knowledge import KnowledgeACL, KnowledgeCollection
 from app.models.procurement import InventoryItem, Supplier, SupplierQuote
@@ -14,11 +15,17 @@ from app.models.procurement import InventoryItem, Supplier, SupplierQuote
 DEMO_PASSWORD = "DemoPass123!"
 DEMO_USERS = {
     "employee": ("研发部", {"EMPLOYEE"}),
+    "manager": ("研发部", {"EMPLOYEE", "APPROVER"}),
     "approver": ("财务部", {"EMPLOYEE", "APPROVER"}),
     "procurement": ("采购部", {"EMPLOYEE", "PROCUREMENT"}),
     "admin": ("信息技术部", {"EMPLOYEE", "ADMIN"}),
     "techadmin": ("信息技术部", {"TECH_ADMIN"}),
 }
+DEMO_APPROVAL_RULES = (
+    (Decimal("0.00"), Decimal("10000.00"), 1, "APPROVER"),
+    (Decimal("10000.01"), None, 1, "APPROVER"),
+    (Decimal("10000.01"), None, 2, "APPROVER"),
+)
 DEMO_INVENTORY = {
     "LT-THINK-14": ("笔记本电脑", "ThinkBook 14 企业版", 25, Decimal("5799.00")),
     "LT-LAT-3450": ("笔记本电脑", "Latitude 3450 商务版", 8, Decimal("6299.00")),
@@ -117,9 +124,7 @@ async def seed_demo_data() -> None:
 
         suppliers: dict[str, Supplier] = {}
         for supplier_name in DEMO_SUPPLIERS:
-            supplier = await session.scalar(
-                select(Supplier).where(Supplier.name == supplier_name)
-            )
+            supplier = await session.scalar(select(Supplier).where(Supplier.name == supplier_name))
             if supplier is None:
                 supplier = Supplier(name=supplier_name, active=True, demo_data=True)
                 session.add(supplier)
@@ -145,6 +150,26 @@ async def seed_demo_data() -> None:
                         currency="CNY",
                         quoted_at=DEMO_QUOTED_AT,
                         source_type="DEMO",
+                    )
+                )
+
+        for min_amount, max_amount, stage, approver_role in DEMO_APPROVAL_RULES:
+            rule = await session.scalar(
+                select(ApprovalRule).where(
+                    ApprovalRule.min_amount == min_amount,
+                    ApprovalRule.max_amount == max_amount,
+                    ApprovalRule.stage == stage,
+                    ApprovalRule.approver_role == approver_role,
+                )
+            )
+            if rule is None:
+                session.add(
+                    ApprovalRule(
+                        min_amount=min_amount,
+                        max_amount=max_amount,
+                        stage=stage,
+                        approver_role=approver_role,
+                        active=True,
                     )
                 )
         await session.commit()

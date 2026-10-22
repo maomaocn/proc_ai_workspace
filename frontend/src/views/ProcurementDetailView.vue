@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeft, RefreshCw, Save, Sparkles } from "@lucide/vue"
+import { ArrowLeft, GitBranch, RefreshCw, Save, Send, Sparkles, XCircle } from "@lucide/vue"
 import { computed, onMounted, reactive, ref } from "vue"
 import { useRoute } from "vue-router"
 
 import { api, ApiError } from "../api/client"
-import type { Procurement, ProcurementPlan } from "../api/types"
+import type { ApprovalPreview, Procurement, ProcurementPlan } from "../api/types"
 import { auth } from "../auth/store"
 import MoneyDisplay from "../components/MoneyDisplay.vue"
 import SourceCitation from "../components/SourceCitation.vue"
@@ -15,6 +15,12 @@ const plan = ref<ProcurementPlan | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const planning = ref(false)
+const submitting = ref(false)
+const cancelling = ref(false)
+const submitDialogOpen = ref(false)
+const approvalPreview = ref<ApprovalPreview | null>(null)
+const submitKey = ref("")
+const cancelKey = ref("")
 const error = ref("")
 const success = ref("")
 const form = reactive({
@@ -31,6 +37,9 @@ const form = reactive({
 const requestId = computed(() => String(route.params.requestId || ""))
 const canEdit = computed(() => request.value?.status === "DRAFT"
   && request.value.requester_id === auth.user.value?.id)
+const canSubmit = computed(() => canEdit.value && request.value?.candidates?.some(
+  candidate => candidate.stock_sufficient && candidate.within_unit_limit && candidate.within_total_budget,
+))
 
 function fillForm(item: Procurement): void {
   form.title = item.title
@@ -93,6 +102,55 @@ async function buildPlan(): Promise<void> {
   }
 }
 
+async function openSubmitDialog(): Promise<void> {
+  if (!request.value || !canSubmit.value) return
+  error.value = ""
+  try {
+    approvalPreview.value = await api.approvalPreview(request.value.id)
+    submitDialogOpen.value = true
+  } catch (caught) {
+    error.value = caught instanceof ApiError ? caught.message : "无法预览审批链"
+  }
+}
+
+async function submitForApproval(): Promise<void> {
+  if (!request.value || !canSubmit.value || submitting.value) return
+  submitting.value = true
+  error.value = ""
+  success.value = ""
+  submitKey.value ||= crypto.randomUUID()
+  try {
+    await api.submitProcurement(request.value.id, request.value.version, submitKey.value)
+    submitDialogOpen.value = false
+    submitKey.value = ""
+    success.value = "采购申请已提交，审批工作流正在等待第一级人工决策。"
+    await load()
+  } catch (caught) {
+    error.value = caught instanceof ApiError ? caught.message : "采购申请提交失败"
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function cancelDraft(): Promise<void> {
+  if (!request.value || !canEdit.value || cancelling.value) return
+  if (!window.confirm(`确认取消草稿“${request.value.title}”？取消后不可继续编辑或提交。`)) return
+  cancelling.value = true
+  error.value = ""
+  success.value = ""
+  cancelKey.value ||= crypto.randomUUID()
+  try {
+    await api.cancelProcurement(request.value.id, request.value.version, cancelKey.value)
+    cancelKey.value = ""
+    success.value = "采购草稿已取消。"
+    await load()
+  } catch (caught) {
+    error.value = caught instanceof ApiError ? caught.message : "采购草稿取消失败"
+  } finally {
+    cancelling.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -134,7 +192,27 @@ onMounted(load)
           <h1>{{ request.title }}</h1>
           <p>{{ request.requester.username }} · 版本 {{ request.version }} · {{ request.status === "DRAFT" ? "尚未提交审批" : request.status }}</p>
         </div>
-        <span :class="['status-badge', request.status.toLowerCase()]">{{ request.status === "DRAFT" ? "草稿" : request.status }}</span>
+        <div class="header-actions">
+          <span :class="['status-badge', request.status.toLowerCase()]">{{ request.status === "DRAFT" ? "草稿" : request.status }}</span>
+          <button
+            v-if="canEdit"
+            class="danger-text-button"
+            type="button"
+            :disabled="cancelling"
+            @click="cancelDraft"
+          >
+            <XCircle :size="16" />{{ cancelling ? "取消中" : "取消草稿" }}
+          </button>
+          <button
+            v-if="canEdit"
+            class="primary-button"
+            type="button"
+            :disabled="!canSubmit || submitting"
+            @click="openSubmitDialog"
+          >
+            <Send :size="16" />提交审批
+          </button>
+        </div>
       </header>
 
       <section class="procurement-summary-band">
@@ -231,7 +309,8 @@ onMounted(load)
             />
             {{ planning ? "正在调用工具" : "生成候选方案" }}
           </button>
-          <small v-if="!canEdit">只有申请人可为草稿生成方案；提交审批将在 M4 实现。</small>
+          <small v-if="canEdit && !canSubmit">至少需要一个库存充足且预算内的候选方案，才能提交审批。</small>
+          <small v-else-if="!canEdit">只有申请人可为草稿生成方案。</small>
           <div
             v-if="plan"
             class="tool-call-list"
@@ -307,6 +386,113 @@ onMounted(load)
           />
         </div>
       </section>
+
+      <section
+        v-if="request.approval_tasks?.length"
+        class="workflow-section"
+      >
+        <div class="panel-heading">
+          <div>
+            <p class="overline">
+              LANGGRAPH WORKFLOW
+            </p><h2>审批进度</h2>
+          </div>
+          <span>{{ request.workflow_run?.status || request.status }}</span>
+        </div>
+        <ol class="approval-chain horizontal-chain">
+          <li
+            v-for="task in request.approval_tasks"
+            :key="task.id"
+            :class="task.status.toLowerCase()"
+          >
+            <span class="stage-index">{{ task.stage }}</span>
+            <span><strong>{{ task.assignee.username }}</strong><small>{{ task.approver_role }}</small></span>
+            <span :class="['status-badge', task.status.toLowerCase()]">{{ task.status }}</span>
+            <p v-if="task.decision_comment">
+              {{ task.decision_comment }}
+            </p>
+          </li>
+        </ol>
+        <p
+          v-if="request.workflow_run"
+          class="workflow-meta"
+        >
+          <GitBranch :size="15" />运行 {{ request.workflow_run.id.slice(0, 8).toUpperCase() }} · Thread {{ request.workflow_run.graph_thread_id }}
+        </p>
+      </section>
+
+      <section
+        v-if="request.audit_events?.length"
+        class="audit-section"
+      >
+        <div class="panel-heading">
+          <div>
+            <p class="overline">
+              IMMUTABLE TRACE
+            </p><h2>审计记录</h2>
+          </div><span>{{ request.audit_events.length }} 条</span>
+        </div>
+        <ol class="audit-timeline">
+          <li
+            v-for="event in request.audit_events"
+            :key="event.id"
+          >
+            <span class="audit-dot" />
+            <div><strong>{{ event.action }}</strong><small>{{ new Date(event.created_at).toLocaleString("zh-CN", { hour12: false }) }} · Request {{ event.request_id.slice(0, 8).toUpperCase() }}</small></div>
+          </li>
+        </ol>
+      </section>
     </template>
+
+    <Teleport to="body">
+      <div
+        v-if="submitDialogOpen && approvalPreview"
+        class="dialog-backdrop"
+        role="presentation"
+        @click.self="!submitting && (submitDialogOpen = false)"
+      >
+        <section
+          class="submit-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submit-dialog-title"
+        >
+          <p class="overline">
+            APPROVAL PREVIEW
+          </p>
+          <h2 id="submit-dialog-title">
+            确认提交审批
+          </h2>
+          <p>总预算 <strong><MoneyDisplay :value="approvalPreview.total_budget" /></strong>，提交后草稿内容和候选方案将锁定。</p>
+          <ol class="preview-chain">
+            <li
+              v-for="stage in approvalPreview.stages"
+              :key="stage.stage"
+            >
+              <span class="stage-index">{{ stage.stage }}</span>
+              <span><strong>{{ stage.assignee_username }}</strong><small>{{ stage.assignee_department }} · {{ stage.approver_role }}</small></span>
+            </li>
+          </ol>
+          <div class="dialog-actions">
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="submitting"
+              @click="submitDialogOpen = false"
+            >
+              返回检查
+            </button>
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="submitting"
+              @click="submitForApproval"
+            >
+              <Send :size="16" />{{ submitting ? "提交中" : "确认提交" }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
   </div>
 </template>

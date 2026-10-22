@@ -24,6 +24,7 @@ from app.db.base import Base
 from app.models.base import TimestampMixin, UUIDPrimaryKeyMixin
 
 if TYPE_CHECKING:
+    from app.models.approval import AgentRun, ApprovalTask
     from app.models.identity import User
 
 
@@ -126,6 +127,12 @@ class PurchaseRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         back_populates="request",
         cascade="all, delete-orphan",
         order_by="PurchaseCandidate.total_price",
+    )
+    approval_tasks: Mapped[list[ApprovalTask]] = relationship(
+        back_populates="request", cascade="all, delete-orphan", order_by="ApprovalTask.stage"
+    )
+    workflow_runs: Mapped[list[AgentRun]] = relationship(
+        back_populates="request", cascade="all, delete-orphan", order_by="AgentRun.created_at"
     )
 
 

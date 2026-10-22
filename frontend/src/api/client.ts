@@ -1,4 +1,9 @@
 import type {
+  ApprovalDecisionResult,
+  ApprovalInboxItem,
+  ApprovalPreview,
+  ApprovalRule,
+  ApprovalTaskDetail,
   ApiErrorBody,
   ChatMessage,
   ChatSession,
@@ -13,6 +18,7 @@ import type {
   Procurement,
   ProcurementDraftInput,
   ProcurementPlan,
+  ProcurementSubmission,
   PurchaseIntent,
   Supplier,
   SupplierQuote,
@@ -125,6 +131,46 @@ export const api = {
     }),
   buildProcurementPlan: (requestId: string) =>
     request<ProcurementPlan>(`/procurements/${requestId}/plan`, { method: "POST" }),
+  approvalPreview: (requestId: string) =>
+    request<ApprovalPreview>(`/procurements/${requestId}/approval-preview`),
+  submitProcurement: (requestId: string, version: number, idempotencyKey: string) =>
+    request<ProcurementSubmission>(`/procurements/${requestId}/submit`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ version }),
+    }),
+  cancelProcurement: (requestId: string, version: number, idempotencyKey: string) =>
+    request<{ request_id: string; purchase_status: "CANCELLED"; version: number }>(
+      `/procurements/${requestId}/cancel`,
+      {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ version }),
+      },
+    ),
+  approvalTasks: (view: "pending" | "processed") =>
+    request<Page<ApprovalInboxItem>>(`/approvals/tasks?view=${view}&page=1&page_size=100`),
+  approvalTask: (taskId: string) => request<ApprovalTaskDetail>(`/approvals/tasks/${taskId}`),
+  decideApproval: (
+    taskId: string,
+    payload: { action: "APPROVE" | "REJECT"; comment: string | null },
+    idempotencyKey: string,
+  ) => request<ApprovalDecisionResult>(`/approvals/tasks/${taskId}/decision`, {
+    method: "POST",
+    headers: { "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify(payload),
+  }),
+  approvalRules: () => request<ApprovalRule[]>("/admin/approval-rules"),
+  createApprovalRule: (payload: Omit<ApprovalRule, "id" | "created_at" | "updated_at">) =>
+    request<ApprovalRule>("/admin/approval-rules", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateApprovalRule: (ruleId: string, payload: Partial<ApprovalRule>) =>
+    request<ApprovalRule>(`/admin/approval-rules/${ruleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
   inventoryItems: (params = "page=1&page_size=100") =>
     request<Page<InventoryItem>>(`/inventory/items?${params}`),
   createInventoryItem: (payload: Omit<InventoryItem, "id" | "created_at" | "updated_at">) =>

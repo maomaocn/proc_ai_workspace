@@ -8,7 +8,7 @@
 | M1 | DONE | 2026-10-21：Ruff、Pytest 15 项、前端 lint/typecheck/test/build/audit、真实 API 权限与会话隔离、Mock 意图解析和浏览器确认流程通过 | 内置浏览器本轮未提供移动视口缩放；移动端依赖响应式 CSS 与构建检查，后续补充真实设备回归 |
 | M2 | DONE | 2026-10-21：Ruff、Pytest 25 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器 RAG/ACL/删除验收通过 | 扫描版 PDF 暂不含 OCR；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
 | M3 | DONE | 2026-10-22：Ruff、Pytest 29 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器采购/工具链验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
-| M4 | NOT_STARTED | 无 | 依赖 M3 |
+| M4 | DONE | 2026-10-22：LangGraph PostgreSQL checkpoint、阈值与顺序审批、自审拒绝、幂等/并发/审计、Ruff、Pytest 35 项、前端 7 项测试及构建、Compose 与真实 HTTP/浏览器验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；采购履约、MCP 与 Harness 按计划留待后续阶段 |
 | M5 | NOT_STARTED | 无 | 依赖 M4 |
 | M6 | NOT_STARTED | 无 | 依赖 M5 |
 
@@ -53,4 +53,16 @@
 - 后端：主机 Conda 环境和容器内 `ruff check .` 均通过；主机与容器连接 Compose PostgreSQL 的 `pytest` 均为 29 passed；仅有 Starlette TestClient 的上游 AnyIO 弃用提示。
 - 前端：`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build` 通过；3 个 Vitest 文件、5 项测试通过，完整 `npm audit` 为 0 vulnerabilities。
 - 运行验收：PostgreSQL、FastAPI、Vue/Nginx 三服务均为 healthy；`/healthz`、`/readyz` 和前端返回 200，服务版本为 0.4.0；真实 HTTP 与浏览器采购链路通过。
-- 范围控制：未实现提交/取消、审批、LangGraph、履约、MCP 或 Mini Agent Harness，M4-M6 仍保持 NOT_STARTED。
+- 范围控制：当时未实现提交/取消、审批、LangGraph、履约、MCP 或 Mini Agent Harness，M4-M6 保持 NOT_STARTED。
+
+## M4 验收记录（2026-10-22）
+
+- 审批规则：数据库规则实现 `<=10000.00` 一级、`>10000.00` 两级顺序审批；提交前预览返回部门负责人 `manager` 和财务审批人 `approver`，规则缺失、级别缺口或同级金额重叠均拒绝流转。
+- LangGraph：真实 `StateGraph` 使用 `interrupt()` 暂停和 `Command(resume=...)` 恢复；官方 PostgreSQL saver 采用同步 durability，checkpoint 通过独立 psycopg 连接持久化，未使用进程内 MemorySaver。
+- 事务安全：提交、草稿取消和审批决策要求 UUID 幂等键；任务和采购记录行锁保护状态检查；审批决定不可变；业务决策先提交，再通过可重放恢复事件推进 graph；并发测试确认同一任务仅一个决策成功。
+- 权限与审计：指定审批人才能查看和处理任务，申请人自审返回 `SELF_APPROVAL_FORBIDDEN`；驳回必须填写理由；提交、取消、批准和驳回写入只追加审计事件。
+- 前端：新增待办/已处理审批中心、审批详情和管理员规则页；采购详情支持审批链预览、显式确认提交、草稿取消、工作流进度及审计时间线；APPROVER/ADMIN 路由与导航按角色隔离。
+- 后端：主机 Conda 环境与容器内 `ruff check .` 均通过；连接 Compose PostgreSQL 的全量 `pytest` 为 35 passed；Alembic 为 `20261022_0005 (head)` 且 schema 无漂移，第三方 checkpoint 表由 saver 自主管理。
+- 前端：`npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 通过；4 个 Vitest 文件、7 项测试通过；`npm audit` 为 0 vulnerabilities。
+- 运行验收：PostgreSQL、FastAPI、Vue/Nginx 三服务均 healthy；`/healthz`、`/readyz` 和前端代理返回 200 及版本 `0.5.0`。真实 HTTP 完成 60000 元两级提交、逐级恢复和最终批准，浏览器完成审批与规则页面及 390px 响应式检查，控制台无错误。
+- 范围控制：未实现采购履约状态转换、MCP Server/Client、Mini Agent Harness 或技术观察页面，M5-M6 仍保持 NOT_STARTED。

@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from "vue-router"
 
 import { auth } from "./auth/store"
 import AppShell from "./components/AppShell.vue"
+import ApprovalDetailView from "./views/ApprovalDetailView.vue"
+import ApprovalRulesView from "./views/ApprovalRulesView.vue"
+import ApprovalsView from "./views/ApprovalsView.vue"
 import AssistantView from "./views/AssistantView.vue"
 import DashboardView from "./views/DashboardView.vue"
 import KnowledgeDocumentView from "./views/KnowledgeDocumentView.vue"
@@ -41,6 +44,24 @@ const router = createRouter({
           component: ProcurementDetailView,
         },
         { path: "inventory", name: "inventory", component: InventoryView },
+        {
+          path: "approvals",
+          name: "approvals",
+          component: ApprovalsView,
+          meta: { roles: ["APPROVER"] satisfies Role[] },
+        },
+        {
+          path: "approvals/:taskId",
+          name: "approval-detail",
+          component: ApprovalDetailView,
+          meta: { roles: ["APPROVER"] satisfies Role[] },
+        },
+        {
+          path: "admin/approval-rules",
+          name: "approval-rules",
+          component: ApprovalRulesView,
+          meta: { roles: ["ADMIN"] satisfies Role[] },
+        },
         {
           path: "suppliers",
           name: "suppliers",

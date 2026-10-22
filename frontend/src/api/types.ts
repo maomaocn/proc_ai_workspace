@@ -184,6 +184,7 @@ export interface SupplierQuote {
 }
 
 export type PurchaseStatus = "DRAFT" | "SUBMITTED" | "PENDING_APPROVAL" | "APPROVED" | "REJECTED" | "ORDERED" | "RECEIVED" | "CLOSED" | "CANCELLED"
+export type ApprovalTaskStatus = "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED"
 
 export interface ProcurementDraftInput {
   title: string
@@ -231,6 +232,154 @@ export interface Procurement {
   version: number
   linked_run_id: string | null
   candidates?: PurchaseCandidate[]
+  approval_tasks?: ApprovalTask[]
+  workflow_run?: WorkflowRun | null
+  audit_events?: AuditEvent[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ApprovalUser {
+  id: string
+  username: string
+}
+
+export interface ApprovalDecision {
+  id: string
+  task_id: string
+  actor_id: string
+  actor: ApprovalUser
+  action: "APPROVE" | "REJECT"
+  comment: string | null
+  idempotency_key: string
+  created_at: string
+}
+
+export interface ApprovalTask {
+  id: string
+  request_id: string
+  stage: number
+  approver_role: string
+  assignee_id: string
+  assignee: ApprovalUser
+  status: ApprovalTaskStatus
+  decision_comment: string | null
+  decided_at: string | null
+  created_at: string
+  updated_at: string
+  decisions: ApprovalDecision[]
+}
+
+export interface ApprovalInboxItem {
+  task: ApprovalTask
+  request_title: string
+  requester_username: string
+  total_budget: string
+  purchase_status: PurchaseStatus
+  submitted_at: string
+}
+
+export interface ApprovalCandidate {
+  id: string
+  sku: string
+  model: string
+  supplier_name: string
+  quantity: number
+  unit_price: string
+  total_price: string
+  source_type: "DEMO"
+}
+
+export interface ApprovalPurchase {
+  id: string
+  requester_id: string
+  requester: ApprovalUser
+  title: string
+  category: string
+  item_description: string
+  quantity: number
+  unit_price_limit: string
+  total_budget: string
+  purpose: string
+  priority: "LOW" | "NORMAL" | "HIGH"
+  notes: string | null
+  status: PurchaseStatus
+  version: number
+  linked_run_id: string | null
+  candidates: ApprovalCandidate[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ApprovalTaskDetail {
+  task: ApprovalTask
+  procurement: ApprovalPurchase
+  approval_chain: ApprovalTask[]
+}
+
+export interface ApprovalPreviewStage {
+  stage: number
+  approver_role: string
+  assignee_id: string
+  assignee_username: string
+  assignee_department: string
+}
+
+export interface ApprovalPreview {
+  request_id: string
+  total_budget: string
+  stages: ApprovalPreviewStage[]
+}
+
+export interface WorkflowRun {
+  id: string
+  request_id: string
+  graph_thread_id: string
+  status: string
+  started_at: string
+  finished_at: string | null
+  error_code: string | null
+  model_provider: string
+  checkpoint?: Record<string, unknown> | null
+}
+
+export interface AuditEvent {
+  id: string
+  actor_id: string | null
+  action: string
+  resource_type: string
+  resource_id: string
+  before_json: Record<string, unknown> | null
+  after_json: Record<string, unknown> | null
+  request_id: string
+  created_at: string
+}
+
+export interface ProcurementSubmission {
+  request_id: string
+  purchase_status: PurchaseStatus
+  version: number
+  run: WorkflowRun
+  approval_tasks: ApprovalTask[]
+}
+
+export interface ApprovalDecisionResult {
+  task_id: string
+  task_status: ApprovalTaskStatus
+  purchase_status: PurchaseStatus
+  decision_id: string
+  workflow_run_id: string
+  next_task_id: string | null
+  idempotent_replay: boolean
+}
+
+export interface ApprovalRule {
+  id: string
+  min_amount: string
+  max_amount: string | null
+  stage: number
+  approver_role: "APPROVER"
+  active: boolean
   created_at: string
   updated_at: string
 }

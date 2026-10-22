@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.approval import ApprovalTaskRead, AuditEventRead, WorkflowRunRead
 from app.schemas.knowledge import SearchResponse
 
 PositiveMoney = Annotated[Decimal, Field(gt=0, max_digits=14, decimal_places=2)]
@@ -247,6 +248,9 @@ class PurchaseRequestRead(BaseModel):
 
 class PurchaseRequestDetail(PurchaseRequestRead):
     candidates: list[PurchaseCandidateRead]
+    approval_tasks: list[ApprovalTaskRead] = []
+    workflow_run: WorkflowRunRead | None = None
+    audit_events: list[AuditEventRead] = []
 
 
 class ToolCallRead(BaseModel):

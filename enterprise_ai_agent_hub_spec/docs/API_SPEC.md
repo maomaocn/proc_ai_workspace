@@ -23,6 +23,7 @@
 | GET/POST | `/procurements` | 登录 | 列表/创建草稿 |
 | GET/PATCH | `/procurements/{id}` | 资源权限 | 详情/编辑草稿 |
 | POST | `/procurements/{id}/plan` | 申请人草稿 | 只读工具生成候选方案与制度依据 |
+| GET | `/procurements/{id}/approval-preview` | 申请人草稿 | 提交前解析确定性审批链 |
 | POST | `/procurements/{id}/submit` | 申请人 | 提交审批 |
 | POST | `/procurements/{id}/cancel` | 申请人 | 仅草稿取消 |
 | GET | `/approvals/tasks` | APPROVER | 我的待办/历史 |
@@ -40,11 +41,11 @@
 | GET | `/mcp/tools` | TECH_ADMIN/ADMIN | 工具 schema/权限 |
 | POST | `/mcp/tools/{tool_id}/test` | TECH_ADMIN/ADMIN | 仅白名单只读工具 |
 | GET/POST | `/admin/users` | ADMIN | 用户列表/创建 |
-| GET/POST | `/admin/approval-rules` | ADMIN | 审批规则列表/创建 |
+| GET/POST/PATCH | `/admin/approval-rules[/{id}]` | ADMIN | 审批规则列表/创建/更新 |
 
 ## 3. 关键请求响应示例
-> M3 已实现采购草稿、方案、库存、供应商和报价接口。提交、取消、审批、履约、工作流、
-> MCP 与 Harness 接口仍是后续阶段契约，本阶段不得视为可调用接口。
+> M4 已实现采购提交/草稿取消、审批任务与决策、审批规则及 LangGraph 持久化工作流。
+> 履约、工作流技术查询、MCP 与 Harness 接口仍是后续阶段契约，本阶段不得视为可调用接口。
 
 **意图解析** `POST /chat/parse-intent`：
 ```json
@@ -64,6 +65,11 @@
 服务端依次调用 `inventory.search`、`policy.search` 和匹配商品的 `supplier.quote`，返回
 `procurement.candidates`、`policy` 与只读 `tool_calls` 摘要。报价来源固定标识为 `DEMO`；
 金额以两位小数字符串传输并由服务端 `Decimal` 计算。
+
+**提交审批** `POST /procurements/{id}/submit`：Header `Idempotency-Key: <uuid>`；Body
+`{"version":1}`。提交前可调用 `GET /procurements/{id}/approval-preview` 检查按金额解析的
+审批级别和审批人。只有申请人自己的 `DRAFT`、版本匹配且至少有一个库存和预算均满足的
+候选方案可提交。响应包含采购状态、版本、工作流运行和顺序审批任务。
 
 **审批决策** `POST /approvals/tasks/{id}/decision`：Header `Idempotency-Key: <uuid>`；Body `{"action":"REJECT","comment":"预算依据不足"}`。`APPROVE` 可附评论，`REJECT` 必填 5~500 字。返回 `task_id`、`task_status`、`purchase_status`、`decision_id`、`workflow_run_id`。
 **检索** `POST /knowledge/search`：`{"collection_id":"uuid","query":"笔记本审批要求","top_k":5}`；返回 `{"hits":[{"document_id":"uuid","filename":"采购制度.pdf","chunk_id":"uuid","page_number":2,"snippet":"...","score":0.82}],"answer":"根据《采购制度.pdf》第 2 页：...","source":"MOCK","has_sufficient_evidence":true}`。无命中时 `hits=[]`、`has_sufficient_evidence=false`，并明确回答“当前知识库未检索到足够依据”。score 仅为实际检索器返回的分数，不强制不同引擎间可比。
