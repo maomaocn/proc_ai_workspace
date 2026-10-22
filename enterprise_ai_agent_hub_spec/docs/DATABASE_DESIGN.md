@@ -23,8 +23,9 @@
 | approval_rules | min_amount, max_amount, stage, approver_role, active | min>=0；max>min 或 NULL；禁止有效规则冲突/缺口 |
 | approval_tasks | request_id, stage, assignee_id, status, decision_comment, decided_at | (request_id,stage,assignee_id) UNIQUE；待办索引 |
 | approval_decisions | task_id, actor_id, action, comment, idempotency_key, created_at | (actor_id,idempotency_key) UNIQUE；不可变更 |
-| agent_runs | user_id, session_id, request_id, graph_thread_id, status, started_at, finished_at, error_code, model_provider | graph_thread_id UNIQUE（非空时）；状态索引 |
-| agent_steps | run_id, step_index, node_name, tool_name, status, duration_ms, input_summary, output_summary, error_code, started_at | (run_id,step_index) UNIQUE；敏感字段脱敏 |
+| agent_runs | user_id, request_id?, graph_thread_id?, run_type, status, started_at, finished_at, error_code, model_provider, max_steps, total_timeout_ms, step_count, tool_call_count, retry_count | graph_thread_id UNIQUE（非空时）；状态索引；限额大于 0 |
+| agent_steps | run_id, step_index, node_name, tool_name, status, duration_ms, input_summary, output_summary, error_code, started_at, finished_at | (run_id,step_index) UNIQUE；敏感字段脱敏 |
+| agent_events | run_id, seq, event_type, data_json, created_at | (run_id,seq) UNIQUE；只存脱敏事件 |
 | mcp_servers | name, transport, config_ref, enabled, health_status | 不存明文凭据 |
 | tool_policies | tool_name, allowed_roles, read_only, enabled, max_calls_per_run | 拒绝优先；最小权限 |
 | audit_events | actor_id, action, resource_type, resource_id, before_json, after_json, request_id, created_at | 只追加，不允许业务接口修改 |

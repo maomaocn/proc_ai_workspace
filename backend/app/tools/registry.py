@@ -4,25 +4,21 @@ import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.errors import AppError
+from app.mcp.client import mcp_client
 from app.models.identity import User
-from app.models.procurement import InventoryItem, SupplierQuote
 from app.rag.permissions import accessible_collection_query, require_collection_permission
 from app.rag.service import knowledge_service
+from app.tools.read_service import query_inventory, query_supplier_quotes
 from app.tools.schemas import (
     InventorySearchInput,
-    InventoryToolItem,
     PolicySearchInput,
-    QuoteToolItem,
     SupplierQuoteInput,
 )
 
@@ -37,6 +33,10 @@ class ToolDefinition:
     allowed_roles: frozenset[str]
     executor: ToolExecutor
     side_effect: bool = False
+    source: str = "LOCAL"
+    external_name: str | None = None
+    timeout_ms: int = 5000
+    max_calls_per_run: int = 4
 
 
 @dataclass(frozen=True)
@@ -60,13 +60,20 @@ class ToolRegistry:
         if definition.name in self._tools:
             raise RuntimeError(f"duplicate tool registration: {definition.name}")
         if definition.side_effect:
-            raise RuntimeError("M3 Tool Registry accepts read-only tools only")
+            raise RuntimeError("M5 Tool Registry accepts read-only tools only")
         self._tools[definition.name] = definition
 
-    def schema(self, name: str) -> dict[str, Any]:
+    def get(self, name: str) -> ToolDefinition:
         definition = self._tools.get(name)
         if definition is None:
             raise AppError(404, "TOOL_NOT_FOUND", "工具不存在")
+        return definition
+
+    def definitions(self) -> list[ToolDefinition]:
+        return list(self._tools.values())
+
+    def schema(self, name: str) -> dict[str, Any]:
+        definition = self.get(name)
         return definition.input_model.model_json_schema()
 
     async def invoke(
@@ -76,9 +83,7 @@ class ToolRegistry:
         user: User,
         session: AsyncSession,
     ) -> ToolExecution:
-        definition = self._tools.get(name)
-        if definition is None:
-            raise AppError(404, "TOOL_NOT_FOUND", "工具不存在")
+        definition = self.get(name)
         if user.roles.isdisjoint(definition.allowed_roles):
             raise AppError(403, "TOOL_NOT_ALLOWED", "当前角色无权调用此工具")
         try:
@@ -93,7 +98,7 @@ class ToolRegistry:
 
         started = time.perf_counter()
         try:
-            async with asyncio.timeout(settings.tool_timeout_seconds):
+            async with asyncio.timeout(definition.timeout_ms / 1000):
                 output = await definition.executor(session, user, parameters)
         except TimeoutError as exc:
             raise AppError(503, "TOOL_TIMEOUT", "工具执行超时") from exc
@@ -108,72 +113,21 @@ class ToolRegistry:
 async def _inventory_search(
     session: AsyncSession, _: User, parameters: BaseModel
 ) -> dict[str, Any]:
+    return await query_inventory(session, InventorySearchInput.model_validate(parameters))
+
+
+async def _supplier_quote(session: AsyncSession, _: User, parameters: BaseModel) -> dict[str, Any]:
+    return await query_supplier_quotes(session, SupplierQuoteInput.model_validate(parameters))
+
+
+async def _mcp_inventory_search(_: AsyncSession, __: User, parameters: BaseModel) -> dict[str, Any]:
     request = InventorySearchInput.model_validate(parameters)
-    limit = min(request.limit, settings.tool_max_result_items)
-    rows = list(
-        (
-            await session.scalars(
-                select(InventoryItem)
-                .where(
-                    InventoryItem.active.is_(True),
-                    InventoryItem.category.ilike(f"%{request.category}%"),
-                    InventoryItem.available_qty >= request.min_qty,
-                )
-                .order_by(InventoryItem.reference_price, InventoryItem.sku)
-                .limit(limit)
-            )
-        ).all()
-    )
-    return {
-        "source": "DATABASE",
-        "items": [
-            InventoryToolItem.model_validate(row, from_attributes=True).model_dump(mode="json")
-            for row in rows
-        ],
-    }
+    return await mcp_client.call("inventory_search", request.model_dump(mode="json"))
 
 
-async def _supplier_quote(
-    session: AsyncSession, _: User, parameters: BaseModel
-) -> dict[str, Any]:
+async def _mcp_supplier_quote(_: AsyncSession, __: User, parameters: BaseModel) -> dict[str, Any]:
     request = SupplierQuoteInput.model_validate(parameters)
-    limit = min(request.limit, settings.tool_max_result_items)
-    rows = list(
-        (
-            await session.scalars(
-                select(SupplierQuote)
-                .where(SupplierQuote.inventory_item_id == request.item_id)
-                .options(
-                    selectinload(SupplierQuote.supplier),
-                    selectinload(SupplierQuote.inventory_item),
-                )
-                .order_by(SupplierQuote.unit_price, SupplierQuote.quoted_at.desc())
-                .limit(limit)
-            )
-        ).all()
-    )
-    quotes: list[dict[str, Any]] = []
-    for row in rows:
-        if not row.supplier.active or not row.inventory_item.active:
-            continue
-        total = (row.unit_price * request.quantity).quantize(Decimal("0.01"))
-        quotes.append(
-            QuoteToolItem(
-                quote_id=row.id,
-                supplier_id=row.supplier_id,
-                supplier_name=row.supplier.name,
-                item_id=row.inventory_item_id,
-                item_model=row.inventory_item.model,
-                available_qty=row.inventory_item.available_qty,
-                unit_price=row.unit_price,
-                quantity=request.quantity,
-                total_price=total,
-                currency=row.currency,
-                quoted_at=row.quoted_at.isoformat(),
-                source_type=row.source_type,
-            ).model_dump(mode="json")
-        )
-    return {"source": "DATABASE", "quotes": quotes}
+    return await mcp_client.call("supplier_quote", request.model_dump(mode="json"))
 
 
 async def _policy_search(
@@ -205,6 +159,7 @@ async def _policy_search(
 
 tool_registry = ToolRegistry()
 _BUSINESS_ROLES = frozenset({"EMPLOYEE", "APPROVER", "PROCUREMENT", "ADMIN"})
+_MCP_ROLES = frozenset({"EMPLOYEE", "APPROVER", "PROCUREMENT", "ADMIN", "TECH_ADMIN"})
 tool_registry.register(
     ToolDefinition(
         name="inventory.search",
@@ -212,6 +167,7 @@ tool_registry.register(
         input_model=InventorySearchInput,
         allowed_roles=_BUSINESS_ROLES,
         executor=_inventory_search,
+        timeout_ms=round(settings.tool_timeout_seconds * 1000),
     )
 )
 tool_registry.register(
@@ -221,6 +177,7 @@ tool_registry.register(
         input_model=SupplierQuoteInput,
         allowed_roles=_BUSINESS_ROLES,
         executor=_supplier_quote,
+        timeout_ms=round(settings.tool_timeout_seconds * 1000),
     )
 )
 tool_registry.register(
@@ -230,5 +187,30 @@ tool_registry.register(
         input_model=PolicySearchInput,
         allowed_roles=_BUSINESS_ROLES,
         executor=_policy_search,
+        timeout_ms=round(settings.tool_timeout_seconds * 1000),
+    )
+)
+tool_registry.register(
+    ToolDefinition(
+        name="mcp.inventory.search",
+        description="经本地 stdio MCP Server 查询演示库存",
+        input_model=InventorySearchInput,
+        allowed_roles=_MCP_ROLES,
+        executor=_mcp_inventory_search,
+        source="MCP",
+        external_name="inventory_search",
+        timeout_ms=round(settings.tool_timeout_seconds * 1000),
+    )
+)
+tool_registry.register(
+    ToolDefinition(
+        name="mcp.supplier.quote",
+        description="经本地 stdio MCP Server 查询演示供应商报价",
+        input_model=SupplierQuoteInput,
+        allowed_roles=_MCP_ROLES,
+        executor=_mcp_supplier_quote,
+        source="MCP",
+        external_name="supplier_quote",
+        timeout_ms=round(settings.tool_timeout_seconds * 1000),
     )
 )

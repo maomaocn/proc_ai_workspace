@@ -108,30 +108,42 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "agent_runs"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('CREATED', 'RUNNING', 'WAITING_APPROVAL', 'SUCCEEDED', 'FAILED', "
-            "'CANCELLED')",
+            "status IN ('CREATED', 'RUNNING', 'WAITING_USER', 'WAITING_APPROVAL', "
+            "'SUCCEEDED', 'FAILED', 'CANCELLED')",
             name="ck_agent_runs_status",
         ),
+        CheckConstraint("max_steps > 0", name="ck_agent_runs_max_steps"),
+        CheckConstraint("total_timeout_ms > 0", name="ck_agent_runs_total_timeout"),
+        CheckConstraint("run_type IN ('WORKFLOW', 'HARNESS')", name="ck_agent_runs_run_type"),
         Index("ix_agent_runs_user_status", "user_id", "status"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
-    request_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("purchase_requests.id", ondelete="CASCADE"), nullable=False, index=True
+    request_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("purchase_requests.id", ondelete="CASCADE"), nullable=True, index=True
     )
-    graph_thread_id: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    graph_thread_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    run_type: Mapped[str] = mapped_column(String(24), nullable=False, default="WORKFLOW")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="CREATED")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     model_provider: Mapped[str] = mapped_column(String(32), nullable=False, default="mock")
+    max_steps: Mapped[int] = mapped_column(Integer, nullable=False, default=12)
+    total_timeout_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=90000)
+    step_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    tool_call_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     user: Mapped[User] = relationship(foreign_keys=[user_id])
-    request: Mapped[PurchaseRequest] = relationship(back_populates="workflow_runs")
+    request: Mapped[PurchaseRequest | None] = relationship(back_populates="workflow_runs")
     steps: Mapped[list[AgentStep]] = relationship(
         back_populates="run", cascade="all, delete-orphan", order_by="AgentStep.step_index"
+    )
+    events: Mapped[list[AgentEvent]] = relationship(
+        back_populates="run", cascade="all, delete-orphan", order_by="AgentEvent.seq"
     )
 
 
@@ -158,8 +170,56 @@ class AgentStep(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     output_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     run: Mapped[AgentRun] = relationship(back_populates="steps")
+
+
+class AgentEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "agent_events"
+    __table_args__ = (
+        UniqueConstraint("run_id", "seq", name="uq_agent_events_run_seq"),
+        CheckConstraint("seq > 0", name="ck_agent_events_seq"),
+        Index("ix_agent_events_run_created", "run_id", "created_at"),
+    )
+
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    seq: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    data_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+    run: Mapped[AgentRun] = relationship(back_populates="events")
+
+
+class MCPServerRecord(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "mcp_servers"
+    __table_args__ = (
+        CheckConstraint("transport IN ('stdio')", name="ck_mcp_servers_transport"),
+        CheckConstraint(
+            "health_status IN ('UNKNOWN', 'HEALTHY', 'UNHEALTHY')",
+            name="ck_mcp_servers_health",
+        ),
+    )
+
+    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    transport: Mapped[str] = mapped_column(String(24), nullable=False, default="stdio")
+    config_ref: Mapped[str] = mapped_column(String(255), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    health_status: Mapped[str] = mapped_column(String(24), nullable=False, default="UNKNOWN")
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ToolPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "tool_policies"
+    __table_args__ = (CheckConstraint("max_calls_per_run > 0", name="ck_tool_policies_max_calls"),)
+
+    tool_name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    allowed_roles: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    read_only: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    max_calls_per_run: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
 
 
 class AuditEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):

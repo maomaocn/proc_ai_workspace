@@ -4,8 +4,8 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 当前仓库完成
 [V1.1 实施计划](enterprise_ai_agent_hub_spec/docs/IMPLEMENTATION_PLAN.md)的
 **M0：工程骨架与本地环境**、**M1：身份、会话与 LLM 意图解析**和
-**M2：企业知识库与 RAG**、**M3：采购业务与 Tool Calling**和
-**M4：LangGraph 工作流与人工审批**。
+**M2：企业知识库与 RAG**、**M3：采购业务与 Tool Calling**、
+**M4：LangGraph 工作流与人工审批**和 **M5：MCP 与 Mini Agent Harness**。
 
 需求入口位于 [`enterprise_ai_agent_hub_spec/README.md`](enterprise_ai_agent_hub_spec/README.md)，
 阶段验收状态记录在
@@ -35,9 +35,14 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 - LangGraph `interrupt`/`Command(resume=...)` 与 PostgreSQL 持久化 checkpoint
 - 提交、取消和审批决策幂等；行锁保护并发决策；只追加审计事件
 - 我的审批、审批详情、申请审批进度和管理员审批规则页面
+- 独立本地 stdio MCP Server/Client、服务端身份校验和工具发现
+- 经 MCP 查询演示库存与供应商报价，统一只读 Tool Registry
+- Mini Agent Harness 白名单、步数/调用/总时长限制、只读有限重试与稳定错误码
+- 持久化 run/step/SSE 事件追踪、敏感参数脱敏和 Last-Event-ID 续读
+- Workflow 节点图、MCP 工具中心和 Harness 运行中心
 
-M4 不接入真实采购平台，不实现采购履约状态流转，也不提前创建 MCP 或 Mini Agent Harness
-管理页面；这些能力按 M5-M6 逐步实现。
+M5 不接入真实采购平台，不实现采购履约状态流转，也不提供任意 Shell、SQL 或文件写入
+工具；生产 ERP 接入与履约状态机属于 M6。
 
 ## 环境要求
 
@@ -110,7 +115,8 @@ alembic upgrade head
 
 M1 迁移新增部门、用户、多角色、会话和消息表；M2 迁移新增知识库、ACL、文档和分块
 表；M3 迁移新增库存、供应商、报价、采购申请和候选方案表；M4 迁移新增审批规则、任务、
-不可变决策、工作流运行/步骤、审计、幂等和恢复事件表。LangGraph saver 自主管理四张
+不可变决策、工作流运行/步骤、审计、幂等和恢复事件表；M5 迁移新增 MCP 服务、工具策略
+和持久化运行事件，并扩展运行限额与步骤结束时间。LangGraph saver 自主管理四张
 `checkpoint_*` 表，Alembic 明确忽略这些第三方表。启动脚本在非生产环境执行幂等演示
 seed；它只补充缺失记录，不清空或覆盖已有用户。生产环境必须设置
 `SEED_DEMO_DATA=false` 并替换 `JWT_SECRET_KEY`。
@@ -225,6 +231,35 @@ Seed 会创建以下确定性金额规则：总预算不超过 `10000.00` 元时
 低于等于一万元的申请只有一级；驳回必须输入至少 5 个字符。提交、取消和决策 API 都要求
 UUID 格式的 `Idempotency-Key`。同一键、同一请求安全重放；同一键用于不同负载返回 409。
 审批决定先在业务事务中持久化，再通过可重放恢复事件推进 LangGraph。
+
+## M5 MCP 与 Harness 演示
+
+MCP Server 是由 API 通过 stdio 启动的独立 Python 子进程，注册名为
+`enterprise-ai-agent-hub-mcp`。它只暴露 `inventory_search` 和 `supplier_quote`，查询本地
+PostgreSQL 演示数据；不需要 LLM API Key，也不提供任意 SQL、Shell 或文件系统写入能力。
+
+推荐流程：
+
+1. 使用 `techadmin / DemoPass123!` 登录，打开“MCP 工具中心”，确认 Server 为
+   `HEALTHY`、传输类型为 `STDIO`，并可发现两个只读工具。
+2. 选择 `mcp.inventory.search`，保留默认 JSON 参数执行测试；结果应标记
+   `MCP_STDIO`，并返回 DEMO 库存及新的 Harness `run_id`。
+3. 打开该 run，检查步骤、工具耗时、调用次数、重试、错误码和脱敏摘要；运行事件 API
+   `GET /api/v1/agent-runs/{run_id}/events` 支持 `Last-Event-ID` 续读。
+4. 打开“Workflow 运行”，选择 M4 审批 run，节点图应显示真实
+   `resolve_approval_chain -> await_approval_stage_*` 路径及等待/完成状态。
+
+默认限制为最大 12 步、总执行 90 秒、单工具 5 秒、只读工具最多 2 次尝试；关键失败码为
+`STEP_LIMIT_EXCEEDED`、`TOOL_TIMEOUT`、`TOOL_NOT_ALLOWED` 和 `RUN_TIMEOUT`。工具策略保存在
+`tool_policies`，拒绝优先；技术角色可观察和测试只读 MCP 工具，但不会因此获得审批权限。
+
+也可在后端目录直接验证 MCP 握手与发现：
+
+```bash
+cd backend
+python -m app.mcp.server
+# Server 使用 stdio 协议，正常等待客户端 JSON-RPC 输入，不提供 HTTP 端口。
+```
 
 也可以使用项目内虚拟环境：
 

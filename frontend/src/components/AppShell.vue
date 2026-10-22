@@ -2,6 +2,7 @@
 import {
   BookOpen,
   Boxes,
+  Activity,
   ClipboardCheck,
   FileText,
   LayoutDashboard,
@@ -10,6 +11,8 @@ import {
   Menu,
   MessageSquareText,
   Store,
+  Workflow,
+  Wrench,
   X,
 } from "@lucide/vue"
 import { computed, ref } from "vue"
@@ -24,6 +27,9 @@ const canManageSuppliers = computed(() => auth.user.value?.roles.some(
 ))
 const canApprove = computed(() => auth.user.value?.roles.includes("APPROVER"))
 const canAdminister = computed(() => auth.user.value?.roles.includes("ADMIN"))
+const canObserve = computed(() => auth.user.value?.roles.some(
+  role => role === "TECH_ADMIN" || role === "ADMIN",
+))
 
 async function signOut(): Promise<void> {
   auth.logout()
@@ -130,6 +136,30 @@ async function signOut(): Promise<void> {
         >
           <ListChecks :size="18" />
           审批规则
+        </RouterLink>
+        <RouterLink
+          v-if="canObserve"
+          to="/workflows/runs"
+          @click="navigationOpen = false"
+        >
+          <Workflow :size="18" />
+          Workflow 运行
+        </RouterLink>
+        <RouterLink
+          v-if="canObserve"
+          to="/tools"
+          @click="navigationOpen = false"
+        >
+          <Wrench :size="18" />
+          MCP 工具中心
+        </RouterLink>
+        <RouterLink
+          v-if="canObserve"
+          to="/agent-runs"
+          @click="navigationOpen = false"
+        >
+          <Activity :size="18" />
+          Harness 运行
         </RouterLink>
       </nav>
 

@@ -11,12 +11,17 @@ import KnowledgeDocumentView from "./views/KnowledgeDocumentView.vue"
 import KnowledgeView from "./views/KnowledgeView.vue"
 import ForbiddenView from "./views/ForbiddenView.vue"
 import InventoryView from "./views/InventoryView.vue"
+import AgentRunDetailView from "./views/AgentRunDetailView.vue"
+import AgentRunsView from "./views/AgentRunsView.vue"
 import LoginView from "./views/LoginView.vue"
 import NotFoundView from "./views/NotFoundView.vue"
 import ProcurementDetailView from "./views/ProcurementDetailView.vue"
 import ProcurementFormView from "./views/ProcurementFormView.vue"
 import ProcurementsView from "./views/ProcurementsView.vue"
 import SuppliersView from "./views/SuppliersView.vue"
+import MCPToolsView from "./views/MCPToolsView.vue"
+import WorkflowRunDetailView from "./views/WorkflowRunDetailView.vue"
+import WorkflowRunsView from "./views/WorkflowRunsView.vue"
 
 import type { Role } from "./api/types"
 
@@ -67,6 +72,36 @@ const router = createRouter({
           name: "suppliers",
           component: SuppliersView,
           meta: { roles: ["PROCUREMENT", "ADMIN"] satisfies Role[] },
+        },
+        {
+          path: "workflows/runs",
+          name: "workflow-runs",
+          component: WorkflowRunsView,
+          meta: { roles: ["TECH_ADMIN", "ADMIN"] satisfies Role[] },
+        },
+        {
+          path: "workflows/runs/:runId",
+          name: "workflow-run-detail",
+          component: WorkflowRunDetailView,
+          meta: { roles: ["TECH_ADMIN", "ADMIN"] satisfies Role[] },
+        },
+        {
+          path: "tools/:toolId?",
+          name: "mcp-tools",
+          component: MCPToolsView,
+          meta: { roles: ["TECH_ADMIN", "ADMIN"] satisfies Role[] },
+        },
+        {
+          path: "agent-runs",
+          name: "agent-runs",
+          component: AgentRunsView,
+          meta: { roles: ["TECH_ADMIN", "ADMIN"] satisfies Role[] },
+        },
+        {
+          path: "agent-runs/:runId",
+          name: "agent-run-detail",
+          component: AgentRunDetailView,
+          meta: { roles: ["TECH_ADMIN", "ADMIN"] satisfies Role[] },
         },
       ],
     },

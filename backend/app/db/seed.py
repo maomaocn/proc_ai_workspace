@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.security import hash_password
 from app.db.session import SessionFactory
-from app.models.approval import ApprovalRule
+from app.models.approval import ApprovalRule, MCPServerRecord, ToolPolicy
 from app.models.identity import Department, User, UserRole
 from app.models.knowledge import KnowledgeACL, KnowledgeCollection
 from app.models.procurement import InventoryItem, Supplier, SupplierQuote
@@ -39,6 +39,10 @@ DEMO_QUOTES = (
     ("示例供应商·华东办公", "MON-27-QHD", Decimal("1580.00")),
 )
 DEMO_QUOTED_AT = datetime(2026, 10, 21, 8, 0, tzinfo=UTC)
+DEMO_TOOL_POLICIES = {
+    "mcp.inventory.search": (["EMPLOYEE", "APPROVER", "PROCUREMENT", "ADMIN", "TECH_ADMIN"], 4),
+    "mcp.supplier.quote": (["EMPLOYEE", "APPROVER", "PROCUREMENT", "ADMIN", "TECH_ADMIN"], 8),
+}
 
 
 async def seed_demo_data() -> None:
@@ -170,6 +174,34 @@ async def seed_demo_data() -> None:
                         stage=stage,
                         approver_role=approver_role,
                         active=True,
+                    )
+                )
+
+        mcp_server = await session.scalar(
+            select(MCPServerRecord).where(MCPServerRecord.name == "enterprise-ai-agent-hub-mcp")
+        )
+        if mcp_server is None:
+            session.add(
+                MCPServerRecord(
+                    name="enterprise-ai-agent-hub-mcp",
+                    transport="stdio",
+                    config_ref="app.mcp.server",
+                    enabled=True,
+                    health_status="UNKNOWN",
+                )
+            )
+        for tool_name, (allowed_roles, max_calls) in DEMO_TOOL_POLICIES.items():
+            policy = await session.scalar(
+                select(ToolPolicy).where(ToolPolicy.tool_name == tool_name)
+            )
+            if policy is None:
+                session.add(
+                    ToolPolicy(
+                        tool_name=tool_name,
+                        allowed_roles=allowed_roles,
+                        read_only=True,
+                        enabled=True,
+                        max_calls_per_run=max_calls,
                     )
                 )
         await session.commit()

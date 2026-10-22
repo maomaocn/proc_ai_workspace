@@ -9,7 +9,7 @@
 | M2 | DONE | 2026-10-21：Ruff、Pytest 25 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器 RAG/ACL/删除验收通过 | 扫描版 PDF 暂不含 OCR；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
 | M3 | DONE | 2026-10-22：Ruff、Pytest 29 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器采购/工具链验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
 | M4 | DONE | 2026-10-22：LangGraph PostgreSQL checkpoint、阈值与顺序审批、自审拒绝、幂等/并发/审计、Ruff、Pytest 35 项、前端 7 项测试及构建、Compose 与真实 HTTP/浏览器验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；采购履约、MCP 与 Harness 按计划留待后续阶段 |
-| M5 | NOT_STARTED | 无 | 依赖 M4 |
+| M5 | DONE | 2026-10-22：独立 stdio MCP、统一工具注册表、Mini Agent Harness、持久化轨迹/SSE、Ruff、Pytest 39 项、前端 8 项测试及构建、Alembic/Compose/真实 HTTP/浏览器验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；生产级远程 MCP、采购履约与 ERP 集成留待后续阶段 |
 | M6 | NOT_STARTED | 无 | 依赖 M5 |
 
 ## M0 验收记录（2026-10-21）
@@ -66,3 +66,16 @@
 - 前端：`npm run lint`、`npm run typecheck`、`npm test`、`npm run build` 通过；4 个 Vitest 文件、7 项测试通过；`npm audit` 为 0 vulnerabilities。
 - 运行验收：PostgreSQL、FastAPI、Vue/Nginx 三服务均 healthy；`/healthz`、`/readyz` 和前端代理返回 200 及版本 `0.5.0`。真实 HTTP 完成 60000 元两级提交、逐级恢复和最终批准，浏览器完成审批与规则页面及 390px 响应式检查，控制台无错误。
 - 范围控制：未实现采购履约状态转换、MCP Server/Client、Mini Agent Harness 或技术观察页面，M5-M6 仍保持 NOT_STARTED。
+
+## M5 验收记录（2026-10-22）
+
+- MCP：基于官方 Python SDK 的独立 stdio Server/Client 可完成初始化握手、工具发现与调用；Server 仅暴露 `inventory_search`、`supplier_quote` 两个只读工具，库存和报价查询复用参数化 SQLAlchemy 服务。
+- 工具治理：统一注册表同时管理 M3 本地工具与 MCP 工具，执行前校验 Pydantic 输入、角色、启用状态、只读属性和数据库策略；非白名单调用返回 `TOOL_NOT_ALLOWED`，技术管理员不能借工具执行审批。
+- Mini Agent Harness：`AgentRunner` 强制总超时、单工具超时、最大步骤数、每工具调用上限和有限重试；步骤、重试、错误码及脱敏输入/输出摘要持久化，敏感键和常见令牌格式不会写入轨迹。
+- 可观测性：新增运行列表/详情、步骤查询和支持 `Last-Event-ID` 的持久化 SSE；M4 审批工作流也可按真实持久化步骤回放节点状态，不使用仅存在于前端的模拟轨迹。
+- 前端：新增 Workflow 运行列表与节点图、MCP Server/工具中心、Harness 运行列表与步骤检查器；路由和导航仅向 `ADMIN`、`TECH_ADMIN` 开放。
+- 后端：主机 Conda 环境与容器内 `ruff check .` 均通过；连接现有 Compose PostgreSQL 的全量 `pytest` 为 39 passed，M5 定向测试为 4 passed；Alembic 为 `20261022_0006 (head)` 且 schema 无漂移。
+- 前端：`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build` 通过；5 个 Vitest 文件、8 项测试通过；`npm audit` 为 0 vulnerabilities。
+- 运行验收：未重建已有 PostgreSQL 容器，仅重建 API 与前端服务；三服务均 healthy，`/healthz`、`/readyz` 和前端代理返回 200 及版本 `0.6.0`。真实 HTTP 验证 MCP 调用、轨迹、SSE 续传、白名单拒绝及技术管理员审批 403。
+- 浏览器验收：完成工具发现与只读试运行、Harness 步骤详情、Workflow 真实节点图检查；390×844 视口无横向溢出，控制台无错误或警告。
+- 范围控制：未实现采购履约、收货、关闭、生产 ERP 连接或远程 MCP 鉴权；上述能力保持为 M6 范围。

@@ -343,6 +343,87 @@ export interface WorkflowRun {
   checkpoint?: Record<string, unknown> | null
 }
 
+export type AgentRunType = "WORKFLOW" | "HARNESS"
+
+export interface AgentRunSummary {
+  id: string
+  user_id: string
+  username: string
+  request_id: string | null
+  graph_thread_id: string | null
+  run_type: AgentRunType
+  status: string
+  started_at: string
+  finished_at: string | null
+  duration_ms: number | null
+  error_code: string | null
+  model_provider: string
+  max_steps: number
+  total_timeout_ms: number
+  step_count: number
+  tool_call_count: number
+  retry_count: number
+}
+
+export interface AgentStep {
+  id: string
+  run_id: string
+  step_index: number
+  node_name: string
+  tool_name: string | null
+  status: string
+  duration_ms: number | null
+  input_summary: string | null
+  output_summary: string | null
+  error_code: string | null
+  started_at: string
+  finished_at: string | null
+}
+
+export interface AgentRunDetail extends AgentRunSummary {
+  steps: AgentStep[]
+}
+
+export interface WorkflowRunDetail {
+  run: AgentRunSummary
+  business_number: string | null
+  nodes: AgentStep[]
+  edges: Array<{ source: string; target: string }>
+}
+
+export interface MCPServer {
+  id: string
+  name: string
+  version: string | null
+  transport: string
+  config_ref: string
+  enabled: boolean
+  health_status: "UNKNOWN" | "HEALTHY" | "UNHEALTHY"
+  last_checked_at: string | null
+  tool_count: number
+  error_code: string | null
+}
+
+export interface MCPTool {
+  id: string
+  server_name: string
+  external_name: string
+  description: string
+  input_schema: Record<string, unknown>
+  output_schema: Record<string, unknown>
+  allowed_roles: Role[]
+  read_only: boolean
+  enabled: boolean
+  timeout_ms: number
+  max_calls_per_run: number
+}
+
+export interface MCPToolTestResult {
+  run: AgentRunSummary
+  output: Record<string, unknown>
+  source: string
+}
+
 export interface AuditEvent {
   id: string
   actor_id: string | null

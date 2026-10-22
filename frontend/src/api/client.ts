@@ -4,6 +4,8 @@ import type {
   ApprovalPreview,
   ApprovalRule,
   ApprovalTaskDetail,
+  AgentRunDetail,
+  AgentRunSummary,
   ApiErrorBody,
   ChatMessage,
   ChatSession,
@@ -14,6 +16,9 @@ import type {
   KnowledgeSearchResponse,
   InventoryItem,
   LoginResponse,
+  MCPServer,
+  MCPTool,
+  MCPToolTestResult,
   Page,
   Procurement,
   ProcurementDraftInput,
@@ -23,6 +28,7 @@ import type {
   Supplier,
   SupplierQuote,
   User,
+  WorkflowRunDetail,
 } from "./types"
 
 const apiRoot = `${import.meta.env.VITE_API_BASE_URL || "/api"}/api/v1`
@@ -191,4 +197,15 @@ export const api = {
   supplierQuotes: () => request<Page<SupplierQuote>>("/supplier-quotes?page=1&page_size=100"),
   createSupplierQuote: (payload: { supplier_id: string; inventory_item_id: string; unit_price: string; quoted_at: string }) =>
     request<SupplierQuote>("/supplier-quotes", { method: "POST", body: JSON.stringify(payload) }),
+  agentRuns: (params = "page=1&page_size=100") =>
+    request<Page<AgentRunSummary>>(`/agent-runs?${params}`),
+  agentRun: (runId: string) => request<AgentRunDetail>(`/agent-runs/${runId}`),
+  workflowRun: (runId: string) => request<WorkflowRunDetail>(`/workflows/runs/${runId}`),
+  mcpServers: () => request<MCPServer[]>("/mcp/servers"),
+  mcpTools: () => request<MCPTool[]>("/mcp/tools"),
+  testMcpTool: (toolId: string, args: Record<string, unknown>) =>
+    request<MCPToolTestResult>(`/mcp/tools/${toolId}/test`, {
+      method: "POST",
+      body: JSON.stringify({ arguments: args }),
+    }),
 }

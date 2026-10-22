@@ -1,4 +1,5 @@
 from app.models.approval import (
+    AgentEvent,
     AgentRun,
     AgentStep,
     ApprovalDecision,
@@ -6,6 +7,8 @@ from app.models.approval import (
     ApprovalTask,
     AuditEvent,
     IdempotencyRecord,
+    MCPServerRecord,
+    ToolPolicy,
     WorkflowResumeEvent,
 )
 from app.models.chat import ChatMessage, ChatSession
@@ -26,6 +29,7 @@ from app.models.procurement import (
 
 __all__ = [
     "AgentRun",
+    "AgentEvent",
     "AgentStep",
     "ApprovalDecision",
     "ApprovalRule",
@@ -40,10 +44,12 @@ __all__ = [
     "KnowledgeDocument",
     "InventoryItem",
     "IdempotencyRecord",
+    "MCPServerRecord",
     "PurchaseCandidate",
     "PurchaseRequest",
     "Supplier",
     "SupplierQuote",
+    "ToolPolicy",
     "User",
     "UserRole",
     "WorkflowResumeEvent",

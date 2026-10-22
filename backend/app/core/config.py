@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Enterprise AI Agent Hub"
     app_env: Literal["local", "test", "staging", "production"] = "local"
-    app_version: str = "0.5.0"
+    app_version: str = "0.6.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     log_level: str = "INFO"
@@ -55,6 +55,15 @@ class Settings(BaseSettings):
 
     tool_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
     tool_max_result_items: int = Field(default=50, ge=1, le=100)
+    tool_retry_max_attempts: int = Field(default=2, ge=1, le=3)
+    tool_retry_backoff_ms: int = Field(default=50, ge=0, le=5000)
+
+    mcp_server_module: str = "app.mcp.server"
+    mcp_server_expected_name: str = "enterprise-ai-agent-hub-mcp"
+    mcp_server_transport: Literal["stdio"] = "stdio"
+    agent_max_steps: int = Field(default=12, ge=1, le=50)
+    agent_total_timeout_seconds: float = Field(default=90.0, gt=0, le=300)
+    agent_trace_summary_max_chars: int = Field(default=1200, ge=200, le=5000)
 
     @property
     def cors_origin_list(self) -> list[str]:

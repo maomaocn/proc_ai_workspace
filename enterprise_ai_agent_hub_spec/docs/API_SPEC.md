@@ -44,8 +44,8 @@
 | GET/POST/PATCH | `/admin/approval-rules[/{id}]` | ADMIN | 审批规则列表/创建/更新 |
 
 ## 3. 关键请求响应示例
-> M4 已实现采购提交/草稿取消、审批任务与决策、审批规则及 LangGraph 持久化工作流。
-> 履约、工作流技术查询、MCP 与 Harness 接口仍是后续阶段契约，本阶段不得视为可调用接口。
+> M5 已实现工作流技术查询、持久化 SSE、MCP 工具中心和 Mini Agent Harness。
+> 采购履约仍是 M6 契约，本阶段不得视为可调用接口。
 
 **意图解析** `POST /chat/parse-intent`：
 ```json
@@ -72,6 +72,9 @@
 候选方案可提交。响应包含采购状态、版本、工作流运行和顺序审批任务。
 
 **审批决策** `POST /approvals/tasks/{id}/decision`：Header `Idempotency-Key: <uuid>`；Body `{"action":"REJECT","comment":"预算依据不足"}`。`APPROVE` 可附评论，`REJECT` 必填 5~500 字。返回 `task_id`、`task_status`、`purchase_status`、`decision_id`、`workflow_run_id`。
+**MCP 只读测试** `POST /mcp/tools/{tool_id}/test`：TECH_ADMIN/ADMIN；Body
+`{"arguments":{"category":"笔记本电脑","min_qty":1,"limit":5}}`。仅接受注册表中启用的只读
+MCP 工具，响应包含 `run`、`output` 和 `source`；失败先持久化 run/step/error_code，再返回稳定错误。
 **检索** `POST /knowledge/search`：`{"collection_id":"uuid","query":"笔记本审批要求","top_k":5}`；返回 `{"hits":[{"document_id":"uuid","filename":"采购制度.pdf","chunk_id":"uuid","page_number":2,"snippet":"...","score":0.82}],"answer":"根据《采购制度.pdf》第 2 页：...","source":"MOCK","has_sufficient_evidence":true}`。无命中时 `hits=[]`、`has_sufficient_evidence=false`，并明确回答“当前知识库未检索到足够依据”。score 仅为实际检索器返回的分数，不强制不同引擎间可比。
 
 **文档上传** `POST /knowledge/documents` 使用 multipart 字段 `collection_id` 与 `file`；仅支持 PDF/TXT/MD，单文件默认最大 20MB。相同 collection 中同 SHA-256 的非删除文档返回 409；索引失败保留 FAILED 状态与稳定 `error_code`。
