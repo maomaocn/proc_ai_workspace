@@ -53,6 +53,7 @@ class FulfillmentService:
         if replay is not None:
             return replay
 
+        # Recheck after locking: another transaction may have committed this key while we waited.
         purchase = await procurement_service.get(session, purchase_id, for_update=True)
         replay = await self._replay(
             session, actor.id, operation, idempotency_key, request_hash
@@ -126,6 +127,7 @@ class FulfillmentService:
             await session.commit()
         except IntegrityError as exc:
             await session.rollback()
+            # The unique idempotency constraint selects a deterministic winner under concurrency.
             replay = await self._replay(
                 session, actor.id, operation, idempotency_key, request_hash
             )

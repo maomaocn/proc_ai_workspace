@@ -222,6 +222,7 @@ async def send_message(
         ("node.completed", {"node": "parse_intent", "status": "SUCCEEDED"}),
         ("run.completed", {"status": "SUCCEEDED"}),
     ]
+    # Persist before serving SSE so reconnects remain read-only and cannot duplicate chat writes.
     for seq, (event_type, payload) in enumerate(event_payloads, start=1):
         run.events.append(
             AgentEvent(

@@ -44,6 +44,7 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 - `APPROVED → ORDERED → RECEIVED → CLOSED` 模拟采购履约状态机
 - 履约角色隔离、版本冲突、幂等重放和只追加审计
 - AC-01～AC-20 验收矩阵、操作手册、演示脚本及安全/性能冒烟
+- 带 request ID、路由、状态、耗时和角色的脱敏 JSON 应用日志
 
 项目不会连接真实采购平台、支付系统或生产 ERP，也不提供任意 Shell、SQL 或文件写入工具。
 `ORDERED/RECEIVED/CLOSED` 仅代表本地 DEMO 状态。
@@ -146,7 +147,7 @@ export DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/enterprise_ai_ag
 export CHECKPOINT_DATABASE_URL=postgresql://app:app@localhost:5432/enterprise_ai_agent_hub
 cd backend
 alembic upgrade head
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-access-log
 ```
 
 ## 本地演示账号
@@ -281,6 +282,7 @@ python -m app.mcp.server
 
 完整材料：
 
+- [系统使用与权限手册](enterprise_ai_agent_hub_spec/docs/USER_GUIDE.md)
 - [操作手册](enterprise_ai_agent_hub_spec/docs/OPERATIONS_GUIDE.md)
 - [演示脚本](enterprise_ai_agent_hub_spec/docs/DEMO_SCRIPT.md)
 - [故障排查](enterprise_ai_agent_hub_spec/docs/TROUBLESHOOTING.md)
@@ -301,7 +303,7 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 alembic upgrade head
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --no-access-log
 ```
 
 运行质量检查：

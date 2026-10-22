@@ -1,7 +1,7 @@
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,7 @@ DatabaseSession = Annotated[AsyncSession, Depends(get_session)]
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     session: DatabaseSession,
 ) -> User:
@@ -32,6 +33,8 @@ async def get_current_user(
     user = await session.scalar(query)
     if user is None or not user.is_active:
         raise AppError(401, "UNAUTHORIZED", "登录状态无效或已过期")
+    request.state.actor_id = str(user.id)
+    request.state.actor_roles = sorted(user.roles)
     return user
 
 

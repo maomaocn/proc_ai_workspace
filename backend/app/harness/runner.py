@@ -150,6 +150,7 @@ class AgentRunner:
         max_steps: int,
     ) -> ToolExecution:
         definition = self.registry.get(call.tool_name)
+        # Automatic retries are limited to read-only tools to avoid repeating external side effects.
         max_attempts = settings.tool_retry_max_attempts if policy.read_only else 1
         last_error: AppError | None = None
         for attempt in range(max_attempts):

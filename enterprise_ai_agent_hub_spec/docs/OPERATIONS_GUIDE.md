@@ -59,6 +59,11 @@ docker compose restart api frontend
 docker compose down              # 保留数据卷
 ```
 
+API 应用日志使用单行 JSON，包含 `request_id`、路由模板、状态码、耗时及鉴权后的用户 UUID/
+角色。日志不记录请求体、查询参数、Authorization、Cookie、对话内容、文档正文或 API Key。
+容器已关闭会记录原始 URL 的 Uvicorn access log；响应头 `X-Request-ID` 可用于关联 JSON
+日志和数据库 `audit_events`。
+
 不要执行 `docker compose down -v`，除非明确决定删除本地数据库、上传文件和 Chroma 数据。
 升级前可使用 PostgreSQL 工具备份：
 
@@ -76,4 +81,6 @@ docker compose exec -T db pg_dump -U app -d enterprise_ai_agent_hub -Fc > local-
 - `ADMIN` 不能审批或推进采购履约；履约写入仅允许 `PROCUREMENT`。
 - 写接口不自动重试；客户端复用原 `Idempotency-Key` 查询同一操作结果。
 - MCP、LLM、RAG 和用户输入均视为不可信数据，不能改变后端权限或状态机。
+
+账号、角色矩阵和各角色操作流程见 `USER_GUIDE.md`。
 

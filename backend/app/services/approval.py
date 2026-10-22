@@ -673,6 +673,7 @@ class ApprovalService:
         return task
 
     async def _process_resume_event(self, session: AsyncSession, event_id: uuid.UUID) -> None:
+        # Approval commits before graph resume; this durable event makes a failed resume replayable.
         event = await session.scalar(
             select(WorkflowResumeEvent).where(WorkflowResumeEvent.id == event_id)
         )
