@@ -32,6 +32,16 @@ function sourceIntent(): PurchaseIntent {
 const draft = reactive<PurchaseIntent>(sourceIntent())
 watch(() => props.message, () => Object.assign(draft, sourceIntent()))
 
+function syncTotalBudget(): void {
+  const quantity = Number(draft.quantity)
+  const unitPrice = Number(draft.unit_price_limit)
+  draft.total_budget = quantity > 0 && unitPrice > 0
+    ? (quantity * unitPrice).toFixed(2)
+    : null
+}
+
+watch([() => draft.quantity, () => draft.unit_price_limit], syncTotalBudget)
+
 const requiredComplete = computed(() => Boolean(
   draft.category && draft.quantity && draft.quantity > 0 && draft.unit_price_limit && draft.purpose,
 ))
@@ -40,7 +50,11 @@ const isConfirmed = computed(() => props.message.status === "CONFIRMED")
 function submit(): void {
   submitted.value = true
   if (!requiredComplete.value || isConfirmed.value) return
-  emit("confirm", { ...draft })
+  syncTotalBudget()
+  emit("confirm", {
+    ...draft,
+    unit_price_limit: Number(draft.unit_price_limit).toFixed(2),
+  })
 }
 </script>
 
@@ -121,7 +135,9 @@ function submit(): void {
         <input
           v-model="draft.total_budget"
           :disabled="isConfirmed"
+          aria-readonly="true"
           min="0.01"
+          readonly
           step="0.01"
           type="number"
         >

@@ -33,7 +33,7 @@ class PurchaseIntent(BaseModel):
 
     @model_validator(mode="after")
     def calculate_total_budget(self) -> "PurchaseIntent":
-        if self.total_budget is None and self.quantity and self.unit_price_limit:
+        if self.quantity and self.unit_price_limit:
             self.total_budget = (self.unit_price_limit * self.quantity).quantize(Decimal("0.01"))
         return self
 

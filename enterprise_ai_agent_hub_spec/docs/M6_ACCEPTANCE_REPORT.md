@@ -52,12 +52,15 @@ docker compose exec -T api pytest -q
 conda run -n proc_ai_workspace python scripts/m6_smoke.py --requests 40
 ```
 
-最终执行记录：后端 45 项、前端 10 项测试通过；Ruff、ESLint、TypeScript、Vite 构建、
+最终执行记录：后端 46 项、前端 11 项测试通过；Ruff、ESLint、TypeScript、Vite 构建、
 `npm audit`、容器内检查与 Alembic schema 漂移检查通过。只读 smoke 连续 40 次授权 GET
 无错误，p95 为 2.79 ms，远低于 1500 ms 门限。浏览器完成四档宽度和最新聊天事件流检查。
 
 补充交付检查验证了 JSON 请求日志、`X-Request-ID` 关联、路由模板记录和查询参数排除；容器
 关闭原始 URL access log，避免 token 等查询参数被重复日志记录。
+
+金额派生回归覆盖确认场景：数量 10、单价上限由 6000 改为 9000 时，即使请求仍携带旧派生值
+60000.00，服务端也会按最终数量与单价归一化为 90000.00；前端同步自动重算只读总预算。
 
 ## 4. 已知限制
 

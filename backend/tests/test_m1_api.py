@@ -132,12 +132,27 @@ async def test_intent_flow_requires_confirmation_and_creates_procurement_draft(
     confirmed = await client.post(
         f"/api/v1/chat/messages/{assistant_message_id}/confirm-intent",
         headers=headers(token),
-        json={"intent": completed_intent},
+        json={
+            "intent": {
+                **completed_intent,
+                "unit_price_limit": "9000.00",
+                "total_budget": "60000.00",
+            }
+        },
     )
     assert confirmed.status_code == 200
     assert confirmed.json()["message"]["status"] == "CONFIRMED"
+    assert confirmed.json()["confirmed_intent"]["unit_price_limit"] == "9000.00"
+    assert confirmed.json()["confirmed_intent"]["total_budget"] == "90000.00"
     assert confirmed.json()["purchase_request_created"] is True
-    assert confirmed.json()["purchase_request_id"]
+    purchase_request_id = confirmed.json()["purchase_request_id"]
+
+    purchase = await client.get(
+        f"/api/v1/procurements/{purchase_request_id}", headers=headers(token)
+    )
+    assert purchase.status_code == 200
+    assert purchase.json()["unit_price_limit"] == "9000.00"
+    assert purchase.json()["total_budget"] == "90000.00"
 
     messages = await client.get(
         f"/api/v1/chat/sessions/{session_id}/messages", headers=headers(token)

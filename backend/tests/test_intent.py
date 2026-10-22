@@ -42,6 +42,17 @@ def test_purchase_intent_rejects_invalid_quantity() -> None:
         PurchaseIntent(category="笔记本电脑", quantity=0)
 
 
+def test_purchase_intent_recalculates_stale_derived_total() -> None:
+    intent = PurchaseIntent(
+        category="笔记本电脑",
+        quantity=10,
+        unit_price_limit="9000.00",
+        total_budget="60000.00",
+    )
+
+    assert intent.total_budget == Decimal("90000.00")
+
+
 @pytest.mark.asyncio
 async def test_openai_compatible_repairs_one_invalid_response() -> None:
     calls = 0

@@ -173,13 +173,6 @@ class ProcurementService:
             else purchase.unit_price_limit
         )
         expected = total_price(proposed_quantity, proposed_unit_price)
-        if body.total_budget is not None and money(body.total_budget) != expected:
-            raise AppError(
-                422,
-                "BUSINESS_RULE_VIOLATION",
-                "总预算必须等于数量乘以单价上限",
-                {"expected_total_budget": str(expected)},
-            )
         for field, value in values.items():
             setattr(purchase, field, value)
         purchase.total_budget = expected

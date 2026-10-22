@@ -152,7 +152,9 @@ async def test_procurement_decimal_ownership_version_and_plan(client: httpx.Asyn
     admin = await login(client, "admin")
 
     created = await client.post(
-        "/api/v1/procurements", headers=headers(employee), json=draft_payload()
+        "/api/v1/procurements",
+        headers=headers(employee),
+        json={**draft_payload(), "total_budget": "1.00"},
     )
     assert created.status_code == 201, created.text
     body = created.json()
@@ -170,21 +172,23 @@ async def test_procurement_decimal_ownership_version_and_plan(client: httpx.Asyn
     )
     assert admin_read.status_code == 200
 
-    mismatch = await client.patch(
+    recalculated = await client.patch(
         f"/api/v1/procurements/{request_id}",
         headers=headers(employee),
         json={"version": 0, "quantity": 9, "total_budget": "1.00"},
     )
-    assert mismatch.status_code == 422
-    assert mismatch.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
+    assert recalculated.status_code == 200, recalculated.text
+    assert recalculated.json()["quantity"] == 9
+    assert recalculated.json()["total_budget"] == "54000.00"
+    assert recalculated.json()["version"] == 1
 
     updated = await client.patch(
         f"/api/v1/procurements/{request_id}",
         headers=headers(employee),
-        json={"version": 0, "notes": "已复核预算"},
+        json={"version": 1, "notes": "已复核预算"},
     )
     assert updated.status_code == 200, updated.text
-    assert updated.json()["version"] == 1
+    assert updated.json()["version"] == 2
     stale = await client.patch(
         f"/api/v1/procurements/{request_id}",
         headers=headers(employee),
@@ -201,7 +205,7 @@ async def test_procurement_decimal_ownership_version_and_plan(client: httpx.Asyn
     assert plan_body["procurement"]["candidates"]
     cheapest = plan_body["procurement"]["candidates"][0]
     assert cheapest["unit_price"] == "5680.00"
-    assert cheapest["total_price"] == "56800.00"
+    assert cheapest["total_price"] == "51120.00"
     assert cheapest["stock_sufficient"] is True
     assert cheapest["within_unit_limit"] is True
     assert cheapest["source_quote"]["source_type"] == "DEMO"

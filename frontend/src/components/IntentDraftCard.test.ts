@@ -73,4 +73,24 @@ describe("IntentDraftCard", () => {
     )
     expect(wrapper.find("button[type='submit']").exists()).toBe(false)
   })
+
+  it("recalculates the read-only total when quantity or unit price changes", async () => {
+    const wrapper = mount(IntentDraftCard, {
+      props: { message: message() },
+      global: { stubs: { RouterLink: RouterLinkStub } },
+    })
+    const moneyInputs = wrapper.findAll("input[type='number']")
+
+    await moneyInputs[1].setValue("9000")
+
+    expect(moneyInputs[2].attributes("readonly")).toBeDefined()
+    expect((moneyInputs[2].element as HTMLInputElement).value).toBe("90000.00")
+
+    await wrapper.findAll("textarea")[0].setValue("研发办公")
+    await wrapper.get("form").trigger("submit")
+    expect(wrapper.emitted("confirm")?.[0]?.[0]).toMatchObject({
+      unit_price_limit: "9000.00",
+      total_budget: "90000.00",
+    })
+  })
 })

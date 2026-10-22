@@ -167,11 +167,8 @@ class PurchaseRequestCreate(BaseModel):
         return normalized or None
 
     @model_validator(mode="after")
-    def validate_total(self) -> "PurchaseRequestCreate":
-        expected = (self.unit_price_limit * self.quantity).quantize(Decimal("0.01"))
-        if self.total_budget is not None and self.total_budget != expected:
-            raise ValueError("total_budget must equal quantity multiplied by unit_price_limit")
-        self.total_budget = expected
+    def calculate_total_budget(self) -> "PurchaseRequestCreate":
+        self.total_budget = (self.unit_price_limit * self.quantity).quantize(Decimal("0.01"))
         return self
 
 
