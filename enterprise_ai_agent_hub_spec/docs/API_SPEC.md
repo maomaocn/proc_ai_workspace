@@ -44,8 +44,7 @@
 | GET/POST/PATCH | `/admin/approval-rules[/{id}]` | ADMIN | 审批规则列表/创建/更新 |
 
 ## 3. 关键请求响应示例
-> M5 已实现工作流技术查询、持久化 SSE、MCP 工具中心和 Mini Agent Harness。
-> 采购履约仍是 M6 契约，本阶段不得视为可调用接口。
+> M6 已实现工作流技术查询、持久化 SSE、MCP/Harness，以及确定性的模拟采购履约。
 
 **意图解析** `POST /chat/parse-intent`：
 ```json
@@ -72,6 +71,10 @@
 候选方案可提交。响应包含采购状态、版本、工作流运行和顺序审批任务。
 
 **审批决策** `POST /approvals/tasks/{id}/decision`：Header `Idempotency-Key: <uuid>`；Body `{"action":"REJECT","comment":"预算依据不足"}`。`APPROVE` 可附评论，`REJECT` 必填 5~500 字。返回 `task_id`、`task_status`、`purchase_status`、`decision_id`、`workflow_run_id`。
+**采购履约** `POST /procurements/{id}/fulfillment-transition`：仅 `PROCUREMENT`；Header
+`Idempotency-Key: <uuid>`；Body `{"target_status":"ORDERED","version":3,"note":"模拟下单"}`。
+只允许 `APPROVED→ORDERED→RECEIVED→CLOSED`，返回前后状态、递增版本、审计事件 ID 和
+固定 `source:"DEMO"`；不执行真实外部下单、付款或 ERP 调用。
 **MCP 只读测试** `POST /mcp/tools/{tool_id}/test`：TECH_ADMIN/ADMIN；Body
 `{"arguments":{"category":"笔记本电脑","min_qty":1,"limit":5}}`。仅接受注册表中启用的只读
 MCP 工具，响应包含 `run`、`output` 和 `source`；失败先持久化 run/step/error_code，再返回稳定错误。

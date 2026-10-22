@@ -4,8 +4,9 @@ import { computed, onMounted, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import { api, ApiError } from "../api/client"
-import type { ChatMessage, ChatSession, PurchaseIntent } from "../api/types"
+import type { AgentEvent, ChatMessage, ChatSession, PurchaseIntent } from "../api/types"
 import IntentDraftCard from "../components/IntentDraftCard.vue"
+import RunEventFeed from "../components/RunEventFeed.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,8 @@ const loadingMessages = ref(false)
 const sending = ref(false)
 const confirmingId = ref("")
 const error = ref("")
+const eventError = ref("")
+const runEvents = ref<AgentEvent[]>([])
 
 const activeSessionId = computed(() => typeof route.params.sessionId === "string"
   ? route.params.sessionId
@@ -44,11 +47,29 @@ async function loadMessages(sessionId: string): Promise<void> {
   error.value = ""
   try {
     messages.value = (await api.messages(sessionId)).items
+    runEvents.value = []
+    const latestRunId = [...messages.value].reverse().find(item => item.run_id)?.run_id
+    if (latestRunId) await loadRunEvents(latestRunId)
   } catch (caught) {
     error.value = errorMessage(caught, "无法读取消息")
     messages.value = []
   } finally {
     loadingMessages.value = false
+  }
+}
+
+async function loadRunEvents(runId: string): Promise<void> {
+  const lastSequence = runEvents.value[runEvents.value.length - 1]?.data.seq || 0
+  try {
+    const incoming = await api.agentRunEvents(runId, lastSequence)
+    const bySequence = new Map(runEvents.value.map(item => [item.data.seq, item]))
+    for (const event of incoming) bySequence.set(event.data.seq, event)
+    runEvents.value = [...bySequence.values()].sort(
+      (left, right) => left.data.seq - right.data.seq,
+    )
+    eventError.value = ""
+  } catch {
+    eventError.value = "运行事件暂时不可用，可刷新会话安全重试。"
   }
 }
 
@@ -68,6 +89,8 @@ async function send(): Promise<void> {
     const session = activeSession.value || await createSession()
     const response = await api.sendMessage(session.id, content)
     messages.value.push(response.user_message, response.assistant_message)
+    runEvents.value = []
+    await loadRunEvents(response.run_id)
     input.value = ""
     if (session.title === "新的采购对话") {
       const updated = await api.updateSession(session.id, { title: content.slice(0, 28) })
@@ -196,6 +219,15 @@ onMounted(async () => {
       >
         {{ error }}
       </div>
+      <div
+        v-if="eventError"
+        class="inline-error"
+        role="status"
+      >
+        {{ eventError }}
+      </div>
+
+      <RunEventFeed :events="runEvents" />
 
       <div
         class="message-feed"

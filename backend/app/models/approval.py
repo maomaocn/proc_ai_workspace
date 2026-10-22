@@ -114,7 +114,10 @@ class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
         CheckConstraint("max_steps > 0", name="ck_agent_runs_max_steps"),
         CheckConstraint("total_timeout_ms > 0", name="ck_agent_runs_total_timeout"),
-        CheckConstraint("run_type IN ('WORKFLOW', 'HARNESS')", name="ck_agent_runs_run_type"),
+        CheckConstraint(
+            "run_type IN ('WORKFLOW', 'HARNESS', 'CHAT')",
+            name="ck_agent_runs_run_type",
+        ),
         Index("ix_agent_runs_user_status", "user_id", "status"),
     )
 

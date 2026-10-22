@@ -81,7 +81,15 @@ class ProcurementService:
         return purchase
 
     def require_read(self, purchase: PurchaseRequest, user: User) -> None:
-        if purchase.requester_id != user.id and "ADMIN" not in user.roles:
+        procurement_visible = (
+            "PROCUREMENT" in user.roles
+            and purchase.status in {"APPROVED", "ORDERED", "RECEIVED", "CLOSED"}
+        )
+        if (
+            purchase.requester_id != user.id
+            and "ADMIN" not in user.roles
+            and not procurement_visible
+        ):
             raise AppError(403, "FORBIDDEN", "无权查看此采购申请")
 
     def require_owner_draft(self, purchase: PurchaseRequest, user: User) -> None:

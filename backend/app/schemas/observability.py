@@ -13,7 +13,7 @@ class RunSummary(BaseModel):
     username: str
     request_id: uuid.UUID | None
     graph_thread_id: str | None
-    run_type: Literal["WORKFLOW", "HARNESS"]
+    run_type: Literal["WORKFLOW", "HARNESS", "CHAT"]
     status: str
     started_at: datetime
     finished_at: datetime | None

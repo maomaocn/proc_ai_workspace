@@ -23,7 +23,7 @@
 | approval_rules | min_amount, max_amount, stage, approver_role, active | min>=0；max>min 或 NULL；禁止有效规则冲突/缺口 |
 | approval_tasks | request_id, stage, assignee_id, status, decision_comment, decided_at | (request_id,stage,assignee_id) UNIQUE；待办索引 |
 | approval_decisions | task_id, actor_id, action, comment, idempotency_key, created_at | (actor_id,idempotency_key) UNIQUE；不可变更 |
-| agent_runs | user_id, request_id?, graph_thread_id?, run_type, status, started_at, finished_at, error_code, model_provider, max_steps, total_timeout_ms, step_count, tool_call_count, retry_count | graph_thread_id UNIQUE（非空时）；状态索引；限额大于 0 |
+| agent_runs | user_id, request_id?, graph_thread_id?, run_type, status, started_at, finished_at, error_code, model_provider, max_steps, total_timeout_ms, step_count, tool_call_count, retry_count | graph_thread_id UNIQUE（非空时）；run_type 为 WORKFLOW/HARNESS/CHAT；状态索引；限额大于 0 |
 | agent_steps | run_id, step_index, node_name, tool_name, status, duration_ms, input_summary, output_summary, error_code, started_at, finished_at | (run_id,step_index) UNIQUE；敏感字段脱敏 |
 | agent_events | run_id, seq, event_type, data_json, created_at | (run_id,seq) UNIQUE；只存脱敏事件 |
 | mcp_servers | name, transport, config_ref, enabled, health_status | 不存明文凭据 |
@@ -39,6 +39,8 @@
 - 多级审批按 stage 升序创建/激活任务；任何阶段拒绝则整单 REJECTED；全部批准才 APPROVED。
 - 审批幂等键必须持久化并对 actor 作用域唯一；同键同请求返回原结果，同键不同请求返回 409。
 - MCP 和 LLM 不能直接更新审批任务或采购状态。
+- M6 履约复用 `purchase_requests.version`、`idempotency_records` 和 `audit_events`，不新增重复
+  状态表；只有 `PROCUREMENT` 可按相邻状态推进，状态、版本、幂等响应和审计在同一事务提交。
 
 ## 5. 删除与保留
 知识库删除使用 DELETED 状态，后台同步移除向量并清理文件；删除失败进入可重试队列，检索立即过滤 DELETED；业务审计不级联删除。演示数据可通过专用 seed 命令创建，不得在生产自动重置。

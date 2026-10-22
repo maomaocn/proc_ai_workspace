@@ -239,6 +239,18 @@ export interface Procurement {
   updated_at: string
 }
 
+export type FulfillmentStatus = "ORDERED" | "RECEIVED" | "CLOSED"
+
+export interface FulfillmentTransitionResult {
+  request_id: string
+  previous_status: PurchaseStatus
+  purchase_status: FulfillmentStatus
+  version: number
+  audit_event_id: string
+  source: "DEMO"
+  idempotent_replay: boolean
+}
+
 export interface ApprovalUser {
   id: string
   username: string
@@ -343,7 +355,7 @@ export interface WorkflowRun {
   checkpoint?: Record<string, unknown> | null
 }
 
-export type AgentRunType = "WORKFLOW" | "HARNESS"
+export type AgentRunType = "WORKFLOW" | "HARNESS" | "CHAT"
 
 export interface AgentRunSummary {
   id: string
@@ -378,6 +390,22 @@ export interface AgentStep {
   error_code: string | null
   started_at: string
   finished_at: string | null
+}
+
+export interface AgentEvent {
+  id: number
+  event: string
+  data: {
+    run_id: string
+    seq: number
+    timestamp: string
+    node?: string
+    text_delta?: string
+    tool_name?: string
+    status?: string
+    error_code?: string
+    request_id?: string
+  }
 }
 
 export interface AgentRunDetail extends AgentRunSummary {

@@ -44,7 +44,7 @@ settings.validate_runtime_security()
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Enterprise AI Agent Hub API through M5 MCP and Mini Agent Harness",
+    description="M6 end-to-end enterprise procurement, MCP, Harness and fulfillment API",
     lifespan=lifespan,
 )
 register_exception_handlers(app)

@@ -265,3 +265,30 @@ class ProcurementPlanResponse(BaseModel):
     policy: SearchResponse
     tool_calls: list[ToolCallRead]
     source: Literal["DEMO"] = "DEMO"
+
+
+FulfillmentStatus = Literal["ORDERED", "RECEIVED", "CLOSED"]
+
+
+class FulfillmentTransitionRequest(BaseModel):
+    target_status: FulfillmentStatus
+    version: int = Field(ge=0)
+    note: str | None = Field(default=None, max_length=500)
+
+    @field_validator("note")
+    @classmethod
+    def normalize_note(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
+
+
+class FulfillmentTransitionResponse(BaseModel):
+    request_id: uuid.UUID
+    previous_status: str
+    purchase_status: FulfillmentStatus
+    version: int
+    audit_event_id: uuid.UUID
+    source: Literal["DEMO"] = "DEMO"
+    idempotent_replay: bool = False

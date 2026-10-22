@@ -5,7 +5,8 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 [V1.1 实施计划](enterprise_ai_agent_hub_spec/docs/IMPLEMENTATION_PLAN.md)的
 **M0：工程骨架与本地环境**、**M1：身份、会话与 LLM 意图解析**和
 **M2：企业知识库与 RAG**、**M3：采购业务与 Tool Calling**、
-**M4：LangGraph 工作流与人工审批**和 **M5：MCP 与 Mini Agent Harness**。
+**M4：LangGraph 工作流与人工审批**、**M5：MCP 与 Mini Agent Harness**和
+**M6：全链路验收与交付**。
 
 需求入口位于 [`enterprise_ai_agent_hub_spec/README.md`](enterprise_ai_agent_hub_spec/README.md)，
 阶段验收状态记录在
@@ -40,9 +41,12 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 - Mini Agent Harness 白名单、步数/调用/总时长限制、只读有限重试与稳定错误码
 - 持久化 run/step/SSE 事件追踪、敏感参数脱敏和 Last-Event-ID 续读
 - Workflow 节点图、MCP 工具中心和 Harness 运行中心
+- `APPROVED → ORDERED → RECEIVED → CLOSED` 模拟采购履约状态机
+- 履约角色隔离、版本冲突、幂等重放和只追加审计
+- AC-01～AC-20 验收矩阵、操作手册、演示脚本及安全/性能冒烟
 
-M5 不接入真实采购平台，不实现采购履约状态流转，也不提供任意 Shell、SQL 或文件写入
-工具；生产 ERP 接入与履约状态机属于 M6。
+项目不会连接真实采购平台、支付系统或生产 ERP，也不提供任意 Shell、SQL 或文件写入工具。
+`ORDERED/RECEIVED/CLOSED` 仅代表本地 DEMO 状态。
 
 ## 环境要求
 
@@ -261,6 +265,34 @@ python -m app.mcp.server
 # Server 使用 stdio 协议，正常等待客户端 JSON-RPC 输入，不提供 HTTP 端口。
 ```
 
+## M6 履约与交付演示
+
+只有 `PROCUREMENT` 角色可以推进已批准申请，且必须严格按
+`APPROVED → ORDERED → RECEIVED → CLOSED` 顺序执行。每次请求要求当前 `version` 和 UUID
+格式的 `Idempotency-Key`；同键同负载返回原结果，同键不同负载返回 409。`ADMIN` 和
+`TECH_ADMIN` 均不能代替采购人员执行履约。
+
+推荐流程：
+
+1. 按 M4 流程将 10 台笔记本申请审批到 `APPROVED`。
+2. 使用 `procurement / DemoPass123!` 登录，在“采购申请与履约”中打开该申请。
+3. 依次确认模拟下单、模拟收货和关闭；每一步都应增加版本并写入审计时间线。
+4. 切回 `employee`，确认同一采购申请显示最终 `CLOSED` 状态。
+
+完整材料：
+
+- [操作手册](enterprise_ai_agent_hub_spec/docs/OPERATIONS_GUIDE.md)
+- [演示脚本](enterprise_ai_agent_hub_spec/docs/DEMO_SCRIPT.md)
+- [故障排查](enterprise_ai_agent_hub_spec/docs/TROUBLESHOOTING.md)
+- [M6 验收报告](enterprise_ai_agent_hub_spec/docs/M6_ACCEPTANCE_REPORT.md)
+
+真实服务启动后可执行只读安全与性能冒烟：
+
+```bash
+conda run -n proc_ai_workspace python scripts/m6_smoke.py \
+  --base-url http://localhost:8000 --requests 40
+```
+
 也可以使用项目内虚拟环境：
 
 ```bash
@@ -313,14 +345,14 @@ npm run build
 .
 ├── backend/        # FastAPI、数据库、RAG、Chroma 适配和测试
 ├── frontend/       # Vue 3 状态工作台
-├── docs/           # 里程碑补充文档
+├── scripts/        # 部署、安全和性能冒烟脚本
 ├── sample_data/    # 可审查的制度、库存与报价演示数据
 ├── enterprise_ai_agent_hub_spec/  # 权威需求文件
 ├── .env.example
 └── compose.yaml
 ```
 
-## M4 验收
+## M6 验收
 
 ```bash
 docker compose config
@@ -338,9 +370,9 @@ npm --prefix frontend run build
 npm --prefix frontend audit
 ```
 
-M4 自动化测试覆盖金额阈值、一/二级顺序审批、中断与恢复、checkpoint、自审拒绝、指定审批
-人授权、驳回原因、重复提交/决策幂等和两个并发决策只有一个成功。未批准申请没有履约写入
-接口，因此不会提前进入 `ORDERED`。
+M6 自动化在既有测试基础上覆盖员工发起、方案、两级审批、采购履约到关闭，以及未批准拒绝、
+非法跳转、角色越权、版本冲突、幂等重放/冲突和 OpenAPI 契约。完整通过标准和实际结果见
+M6 验收报告。
 
 验收栈保持运行时可直接访问前端进行登录和意图确认。使用 `55432` 是为了避免与
 宿主机已有 PostgreSQL 冲突；停止时执行 `POSTGRES_PORT=55432 docker compose down`，

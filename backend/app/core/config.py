@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     app_name: str = "Enterprise AI Agent Hub"
     app_env: Literal["local", "test", "staging", "production"] = "local"
-    app_version: str = "0.6.0"
+    app_version: str = "0.7.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     log_level: str = "INFO"

@@ -1611,13 +1611,15 @@ footer a {
 
 .status-badge.success,
 .status-badge.approved,
+.status-badge.received,
 .candidate-checks .ok {
   background: #e9f7ef;
   color: var(--success);
 }
 
 .status-badge.pending_approval,
-.status-badge.submitted {
+.status-badge.submitted,
+.status-badge.ordered {
   background: #ecebff;
   color: #4338ca;
 }
@@ -1685,6 +1687,133 @@ footer a {
 
 .procurement-summary-band strong {
   font-size: 1rem;
+}
+
+.fulfillment-band {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--text-primary);
+}
+
+.fulfillment-copy h2 {
+  margin-bottom: 0.35rem;
+  font-size: 1.15rem;
+}
+
+.fulfillment-copy > p:last-child,
+.fulfillment-action small {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.fulfillment-track {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.fulfillment-track li {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+  align-items: center;
+  padding-right: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.fulfillment-track li:not(:last-child)::after {
+  position: absolute;
+  z-index: -1;
+  top: 0.55rem;
+  left: 1rem;
+  width: calc(100% - 1rem);
+  height: 1px;
+  background: var(--border-subtle);
+  content: "";
+}
+
+.fulfillment-track li.done {
+  color: var(--success);
+}
+
+.fulfillment-track li.current {
+  color: #4338ca;
+}
+
+.fulfillment-track li > span:last-child,
+.fulfillment-track strong,
+.fulfillment-track small {
+  display: block;
+  min-width: 0;
+}
+
+.fulfillment-track strong {
+  overflow-wrap: anywhere;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.fulfillment-track small {
+  margin-top: 0.15rem;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 0.6rem;
+}
+
+.track-marker {
+  flex: 0 0 auto;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  background: var(--bg-canvas);
+}
+
+.fulfillment-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.dialog-note {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.dialog-note span {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+@media (min-width: 64rem) {
+  .fulfillment-band {
+    grid-template-columns: 14rem minmax(22rem, 1fr) auto;
+    align-items: center;
+  }
+
+  .fulfillment-action {
+    align-items: flex-end;
+  }
+}
+
+@media (max-width: 32rem) {
+  .fulfillment-track {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .fulfillment-track li:not(:last-child)::after {
+    top: 1rem;
+    left: 0.38rem;
+    width: 1px;
+    height: calc(100% + 0.8rem);
+  }
 }
 
 .procurement-detail-grid {
@@ -2496,9 +2625,18 @@ select:disabled {
 
 .chat-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: calc(100vh - 4rem);
+}
+
+.chat-header > div {
+  min-width: 0;
+}
+
+.chat-header h2 {
+  overflow-wrap: anywhere;
 }
 
 .inline-error {
@@ -3012,6 +3150,53 @@ select:disabled {
   padding: 0.75rem 1rem 1rem;
   border-top: 1px solid var(--border-subtle);
   background: rgb(248 247 242 / 92%);
+}
+
+.run-event-feed {
+  min-width: 0;
+  margin: 0.75rem 1rem 0;
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--border-subtle);
+}
+
+.run-event-heading,
+.run-event-feed li {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.run-event-heading {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.run-event-heading span {
+  margin-left: auto;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.run-event-feed ol {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0;
+  margin: 0.55rem 0 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.run-event-feed li {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+}
+
+.run-event-feed small {
+  font-family: "SFMono-Regular", Consolas, monospace;
 }
 
 .composer > label {

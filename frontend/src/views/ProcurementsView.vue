@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { FilePlus2, Search } from "@lucide/vue"
-import { onMounted, ref } from "vue"
+import { computed, onMounted, ref } from "vue"
 
 import { api, ApiError } from "../api/client"
 import type { Procurement, PurchaseStatus } from "../api/types"
 import MoneyDisplay from "../components/MoneyDisplay.vue"
+import { auth } from "../auth/store"
 
 const items = ref<Procurement[]>([])
 const loading = ref(true)
 const error = ref("")
 const query = ref("")
 const status = ref("")
+const isProcurement = computed(() => auth.user.value?.roles.includes("PROCUREMENT"))
 
 const statusLabels: Record<PurchaseStatus, string> = {
   DRAFT: "草稿",
@@ -49,8 +51,8 @@ onMounted(load)
         <p class="overline">
           PURCHASE REQUESTS
         </p>
-        <h1>采购申请</h1>
-        <p>查看本人采购草稿和候选方案；金额由服务端 Decimal 规则计算。</p>
+        <h1>{{ isProcurement ? "采购申请与履约" : "采购申请" }}</h1>
+        <p>{{ isProcurement ? "查看本人申请和已授权的模拟履约单据。" : "查看本人采购草稿和候选方案；金额由服务端 Decimal 规则计算。" }}</p>
       </div>
       <RouterLink
         class="primary-button"
@@ -80,6 +82,10 @@ onMounted(load)
           <option value="PENDING_APPROVAL">审批中</option>
           <option value="APPROVED">已批准</option>
           <option value="REJECTED">已驳回</option>
+          <option value="ORDERED">已下单</option>
+          <option value="RECEIVED">已收货</option>
+          <option value="CLOSED">已关闭</option>
+          <option value="CANCELLED">已取消</option>
         </select>
       </label>
       <button

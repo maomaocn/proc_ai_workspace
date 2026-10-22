@@ -1,10 +1,27 @@
 <script setup lang="ts">
-import { ArrowLeft, GitBranch, RefreshCw, Save, Send, Sparkles, XCircle } from "@lucide/vue"
+import {
+  ArrowLeft,
+  CheckCircle2,
+  GitBranch,
+  PackageCheck,
+  RefreshCw,
+  Save,
+  Send,
+  Sparkles,
+  Truck,
+  XCircle,
+} from "@lucide/vue"
 import { computed, onMounted, reactive, ref } from "vue"
 import { useRoute } from "vue-router"
 
 import { api, ApiError } from "../api/client"
-import type { ApprovalPreview, Procurement, ProcurementPlan } from "../api/types"
+import type {
+  ApprovalPreview,
+  FulfillmentStatus,
+  Procurement,
+  ProcurementPlan,
+  PurchaseStatus,
+} from "../api/types"
 import { auth } from "../auth/store"
 import MoneyDisplay from "../components/MoneyDisplay.vue"
 import SourceCitation from "../components/SourceCitation.vue"
@@ -17,6 +34,10 @@ const saving = ref(false)
 const planning = ref(false)
 const submitting = ref(false)
 const cancelling = ref(false)
+const fulfilling = ref(false)
+const fulfillmentDialogOpen = ref(false)
+const fulfillmentKey = ref("")
+const fulfillmentNote = ref("")
 const submitDialogOpen = ref(false)
 const approvalPreview = ref<ApprovalPreview | null>(null)
 const submitKey = ref("")
@@ -40,6 +61,34 @@ const canEdit = computed(() => request.value?.status === "DRAFT"
 const canSubmit = computed(() => canEdit.value && request.value?.candidates?.some(
   candidate => candidate.stock_sufficient && candidate.within_unit_limit && candidate.within_total_budget,
 ))
+const fulfillmentStatuses: PurchaseStatus[] = ["APPROVED", "ORDERED", "RECEIVED", "CLOSED"]
+const fulfillmentSteps: FulfillmentStatus[] = ["ORDERED", "RECEIVED", "CLOSED"]
+const nextFulfillmentStatus = computed<FulfillmentStatus | null>(() => {
+  const current = request.value?.status
+  if (current === "APPROVED") return "ORDERED"
+  if (current === "ORDERED") return "RECEIVED"
+  if (current === "RECEIVED") return "CLOSED"
+  return null
+})
+const canFulfill = computed(() => Boolean(
+  nextFulfillmentStatus.value && auth.user.value?.roles.includes("PROCUREMENT"),
+))
+const showFulfillment = computed(() => request.value
+  ? fulfillmentStatuses.includes(request.value.status)
+  : false)
+const fulfillmentLabels: Record<FulfillmentStatus, string> = {
+  ORDERED: "确认模拟下单",
+  RECEIVED: "确认模拟收货",
+  CLOSED: "关闭采购单",
+}
+
+function fulfillmentStepState(step: FulfillmentStatus): "done" | "current" | "pending" {
+  const currentIndex = fulfillmentStatuses.indexOf(request.value?.status || "APPROVED")
+  const stepIndex = fulfillmentStatuses.indexOf(step)
+  if (stepIndex <= currentIndex) return "done"
+  if (stepIndex === currentIndex + 1) return "current"
+  return "pending"
+}
 
 function fillForm(item: Procurement): void {
   form.title = item.title
@@ -151,6 +200,38 @@ async function cancelDraft(): Promise<void> {
   }
 }
 
+function openFulfillmentDialog(): void {
+  if (!canFulfill.value) return
+  fulfillmentNote.value = ""
+  fulfillmentDialogOpen.value = true
+}
+
+async function advanceFulfillment(): Promise<void> {
+  if (!request.value || !nextFulfillmentStatus.value || !canFulfill.value || fulfilling.value) return
+  fulfilling.value = true
+  error.value = ""
+  success.value = ""
+  fulfillmentKey.value ||= crypto.randomUUID()
+  const target = nextFulfillmentStatus.value
+  try {
+    await api.transitionFulfillment(
+      request.value.id,
+      target,
+      request.value.version,
+      fulfillmentNote.value.trim() || null,
+      fulfillmentKey.value,
+    )
+    fulfillmentKey.value = ""
+    fulfillmentDialogOpen.value = false
+    success.value = `模拟履约状态已更新为 ${target}。`
+    await load()
+  } catch (caught) {
+    error.value = caught instanceof ApiError ? caught.message : "采购履约状态更新失败"
+  } finally {
+    fulfilling.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -220,6 +301,64 @@ onMounted(load)
         <div><span>单价上限</span><strong><MoneyDisplay :value="request.unit_price_limit" /></strong></div>
         <div><span>服务端总预算</span><strong><MoneyDisplay :value="request.total_budget" /></strong></div>
         <div><span>候选方案</span><strong>{{ request.candidates?.length || 0 }}</strong></div>
+      </section>
+
+      <section
+        v-if="showFulfillment"
+        class="fulfillment-band"
+      >
+        <div class="fulfillment-copy">
+          <p class="overline">
+            DEMO FULFILLMENT
+          </p>
+          <h2>采购履约</h2>
+          <p>本地模拟状态，不会连接供应商、付款系统或真实 ERP。</p>
+        </div>
+        <ol
+          class="fulfillment-track"
+          aria-label="采购履约进度"
+        >
+          <li class="done">
+            <CheckCircle2 :size="18" />
+            <span><strong>已批准</strong><small>APPROVED</small></span>
+          </li>
+          <li
+            v-for="step in fulfillmentSteps"
+            :key="step"
+            :class="fulfillmentStepState(step)"
+          >
+            <CheckCircle2
+              v-if="fulfillmentStepState(step) === 'done'"
+              :size="18"
+            />
+            <span
+              v-else
+              class="track-marker"
+            />
+            <span><strong>{{ step === 'ORDERED' ? '已下单' : step === 'RECEIVED' ? '已收货' : '已关闭' }}</strong><small>{{ step }}</small></span>
+          </li>
+        </ol>
+        <div class="fulfillment-action">
+          <button
+            v-if="canFulfill && nextFulfillmentStatus"
+            class="primary-button"
+            type="button"
+            :disabled="fulfilling"
+            @click="openFulfillmentDialog"
+          >
+            <Truck
+              v-if="nextFulfillmentStatus === 'ORDERED'"
+              :size="17"
+            />
+            <PackageCheck
+              v-else
+              :size="17"
+            />
+            {{ fulfillmentLabels[nextFulfillmentStatus] }}
+          </button>
+          <small v-else-if="request.status === 'CLOSED'">履约流程已完成。</small>
+          <small v-else>等待采购人员推进下一状态。</small>
+        </div>
       </section>
 
       <div class="procurement-detail-grid">
@@ -443,6 +582,56 @@ onMounted(load)
         </ol>
       </section>
     </template>
+
+    <Teleport to="body">
+      <div
+        v-if="fulfillmentDialogOpen && nextFulfillmentStatus"
+        class="dialog-backdrop"
+        role="presentation"
+        @click.self="!fulfilling && (fulfillmentDialogOpen = false)"
+      >
+        <section
+          class="submit-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="fulfillment-dialog-title"
+        >
+          <p class="overline">
+            DEMO FULFILLMENT
+          </p>
+          <h2 id="fulfillment-dialog-title">
+            {{ fulfillmentLabels[nextFulfillmentStatus] }}
+          </h2>
+          <p>此操作只更新本地演示状态并写入审计记录，不会执行真实下单、收货或付款。</p>
+          <label class="dialog-note">
+            <span>履约备注（可选）</span>
+            <textarea
+              v-model="fulfillmentNote"
+              rows="3"
+              maxlength="500"
+            />
+          </label>
+          <div class="dialog-actions">
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="fulfilling"
+              @click="fulfillmentDialogOpen = false"
+            >
+              返回检查
+            </button>
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="fulfilling"
+              @click="advanceFulfillment"
+            >
+              <PackageCheck :size="16" />{{ fulfilling ? "处理中" : "确认模拟操作" }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div

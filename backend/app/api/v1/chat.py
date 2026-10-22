@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func, select
 
 from app.api.deps import CurrentUser, DatabaseSession
+from app.core.config import settings
 from app.core.errors import AppError
 from app.llm import LLMProvider, ModelProviderError, get_llm_provider
 from app.llm.intents import FIELD_LABELS, REQUIRED_INTENT_FIELDS
+from app.models.approval import AgentEvent, AgentRun, AgentStep
 from app.models.chat import ChatMessage, ChatSession
 from app.models.procurement import PurchaseRequest
 from app.schemas.chat import (
@@ -159,7 +161,26 @@ async def send_message(
     except ModelProviderError as exc:
         raise AppError(503, "MODEL_UNAVAILABLE", "模型暂时无法解析采购需求") from exc
 
-    run_id = uuid.uuid4()
+    started_at = datetime.now(UTC)
+    run = AgentRun(
+        user_id=user.id,
+        request_id=None,
+        graph_thread_id=None,
+        run_type="CHAT",
+        status="RUNNING",
+        started_at=started_at,
+        model_provider=settings.model_provider,
+        max_steps=settings.agent_max_steps,
+        total_timeout_ms=round(settings.agent_total_timeout_seconds * 1000),
+        step_count=1,
+        tool_call_count=0,
+        retry_count=0,
+        steps=[],
+        events=[],
+    )
+    session.add(run)
+    await session.flush()
+    run_id = run.id
     user_message = ChatMessage(
         session_id=session_id,
         sender="USER",
@@ -178,6 +199,42 @@ async def send_message(
         run_id=run_id,
         payload_json=result.model_dump(mode="json"),
     )
+    finished_at = datetime.now(UTC)
+    duration_ms = max(0, round((finished_at - started_at).total_seconds() * 1000))
+    run.status = "SUCCEEDED"
+    run.finished_at = finished_at
+    run.steps.append(
+        AgentStep(
+            step_index=0,
+            node_name="parse_intent",
+            status="SUCCEEDED",
+            duration_ms=duration_ms,
+            started_at=started_at,
+            finished_at=finished_at,
+            input_summary="authenticated purchase request text",
+            output_summary=f"missing_fields={len(result.missing_fields)}",
+        )
+    )
+    event_payloads = [
+        ("run.started", {"status": "RUNNING"}),
+        ("node.started", {"node": "parse_intent", "status": "RUNNING"}),
+        ("message.delta", {"text_delta": assistant_content}),
+        ("node.completed", {"node": "parse_intent", "status": "SUCCEEDED"}),
+        ("run.completed", {"status": "SUCCEEDED"}),
+    ]
+    for seq, (event_type, payload) in enumerate(event_payloads, start=1):
+        run.events.append(
+            AgentEvent(
+                seq=seq,
+                event_type=event_type,
+                data_json={
+                    "run_id": str(run.id),
+                    "seq": seq,
+                    "timestamp": finished_at.isoformat(),
+                    **payload,
+                },
+            )
+        )
     chat_session.updated_at = datetime.now(UTC)
     session.add_all([user_message, assistant_message])
     await session.commit()

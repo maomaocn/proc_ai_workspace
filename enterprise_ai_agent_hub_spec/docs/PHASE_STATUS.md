@@ -10,7 +10,7 @@
 | M3 | DONE | 2026-10-22：Ruff、Pytest 29 项、前端 lint/typecheck/test/build/audit、Alembic 无漂移、真实 API 与浏览器采购/工具链验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；内置浏览器不支持移动视口覆盖，移动端依赖响应式 CSS 与构建检查 |
 | M4 | DONE | 2026-10-22：LangGraph PostgreSQL checkpoint、阈值与顺序审批、自审拒绝、幂等/并发/审计、Ruff、Pytest 35 项、前端 7 项测试及构建、Compose 与真实 HTTP/浏览器验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；采购履约、MCP 与 Harness 按计划留待后续阶段 |
 | M5 | DONE | 2026-10-22：独立 stdio MCP、统一工具注册表、Mini Agent Harness、持久化轨迹/SSE、Ruff、Pytest 39 项、前端 8 项测试及构建、Alembic/Compose/真实 HTTP/浏览器验收通过 | Starlette TestClient 存在上游 AnyIO 弃用提示；生产级远程 MCP、采购履约与 ERP 集成留待后续阶段 |
-| M6 | NOT_STARTED | 无 | 依赖 M5 |
+| M6 | DONE | 2026-10-22：AC-01 至 AC-20、Mock 全链路履约、持久化 SSE、Ruff、Pytest 43 项、前端 10 项测试/构建/audit、Alembic/Compose、40 次只读 smoke 和四档浏览器验收通过 | 真实 ERP/供应商/支付/物流、生产远程 MCP/OCR/高可用不在本地交付范围；Starlette TestClient 有上游 AnyIO 弃用提示 |
 
 ## M0 验收记录（2026-10-21）
 
@@ -79,3 +79,15 @@
 - 运行验收：未重建已有 PostgreSQL 容器，仅重建 API 与前端服务；三服务均 healthy，`/healthz`、`/readyz` 和前端代理返回 200 及版本 `0.6.0`。真实 HTTP 验证 MCP 调用、轨迹、SSE 续传、白名单拒绝及技术管理员审批 403。
 - 浏览器验收：完成工具发现与只读试运行、Harness 步骤详情、Workflow 真实节点图检查；390×844 视口无横向溢出，控制台无错误或警告。
 - 范围控制：未实现采购履约、收货、关闭、生产 ERP 连接或远程 MCP 鉴权；上述能力保持为 M6 范围。
+
+## M6 验收记录（2026-10-22）
+
+- 全链路：新增严格的 DEMO 履约状态机 `APPROVED → ORDERED → RECEIVED → CLOSED`；仅 `PROCUREMENT` 可写，要求最新版本和 UUID 幂等键，每次转换与幂等记录、审计事件在同一事务提交。
+- 权限与契约：未批准、跳步、旧版本、同键异载荷均被拒绝；员工、`ADMIN`、`TECH_ADMIN` 不能推进履约；OpenAPI 请求模型、401/403 及不存在任意 shell/SQL 执行路由均有自动化检查。
+- 运行事件：普通聊天 run 独立标记为 `CHAT`，消息发送持久化 run、step 和 5 个 SSE 事件；`Last-Event-ID` 续传只读且不会重复业务写入。Alembic 增量迁移为 `20261022_0007 (head)`，schema 无漂移。
+- 前端：采购角色可查看已批准与履约中申请，详情展示四步 DEMO 进度与显式确认；申请人只读。助手展示真实持久化运行事件，移动端 Grid 最小宽度已约束。
+- 后端：主机 Conda 环境与容器内 `ruff check .` 均通过；连接现有 Compose PostgreSQL 的全量 `pytest -q` 均为 43 passed，仅有 Starlette TestClient 的上游 AnyIO 弃用提示。
+- 前端：`npm run lint`、`npm run typecheck`、`npm test -- --run`、`npm run build` 通过；7 个 Vitest 文件、10 项测试通过；完整 `npm audit` 为 0 vulnerabilities。
+- 部署与性能：未重建 PostgreSQL 容器，仅重建 API/前端；三服务 healthy，版本 `0.7.0`。只读 smoke 40 次请求 0 错误，p95 为 2.79 ms，健康、就绪、401 与安全路由检查通过。
+- 浏览器：1440、1280、1024、390 px 均无横向溢出；聊天事件流展示 5 个持久化事件，履约列表、详情和确认弹窗可用，控制台无错误或警告。
+- 范围边界：所有库存、报价和履约均明确为 Mock/DEMO；没有连接真实 ERP、供应商、支付或物流，也不声称生产级高可用或容量指标。

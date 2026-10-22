@@ -1,11 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Query, Request
+from fastapi import APIRouter, Depends, Header, Query, Request
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser, DatabaseSession
+from app.api.deps import CurrentUser, DatabaseSession, require_roles
+from app.models.identity import User
 from app.models.procurement import PurchaseRequest
 from app.schemas.approval import (
     ApprovalPreview,
@@ -15,6 +16,8 @@ from app.schemas.approval import (
 )
 from app.schemas.common import Page
 from app.schemas.procurement import (
+    FulfillmentTransitionRequest,
+    FulfillmentTransitionResponse,
     ProcurementPlanResponse,
     PurchaseRequestCreate,
     PurchaseRequestDetail,
@@ -22,10 +25,13 @@ from app.schemas.procurement import (
     PurchaseRequestUpdate,
 )
 from app.services.approval import approval_service
+from app.services.fulfillment import fulfillment_service
 from app.services.procurement import procurement_service
 
 router = APIRouter(prefix="/procurements", tags=["Procurements"])
 IdempotencyKey = Annotated[uuid.UUID, Header(alias="Idempotency-Key")]
+ProcurementOperator = Annotated[User, Depends(require_roles("PROCUREMENT"))]
+FULFILLMENT_STATUSES = {"APPROVED", "ORDERED", "RECEIVED", "CLOSED"}
 
 
 @router.get("", response_model=Page[PurchaseRequestRead])
@@ -39,7 +45,15 @@ async def list_procurements(
 ) -> Page[PurchaseRequestRead]:
     filters = []
     if "ADMIN" not in user.roles:
-        filters.append(PurchaseRequest.requester_id == user.id)
+        if "PROCUREMENT" in user.roles:
+            filters.append(
+                or_(
+                    PurchaseRequest.requester_id == user.id,
+                    PurchaseRequest.status.in_(FULFILLMENT_STATUSES),
+                )
+            )
+        else:
+            filters.append(PurchaseRequest.requester_id == user.id)
     if status:
         filters.append(PurchaseRequest.status == status)
     if query:
@@ -146,6 +160,28 @@ async def cancel_procurement(
         session,
         request_id,
         body.version,
+        idempotency_key,
+        user,
+        request.state.request_id,
+    )
+
+
+@router.post(
+    "/{request_id}/fulfillment-transition",
+    response_model=FulfillmentTransitionResponse,
+)
+async def transition_fulfillment(
+    request_id: uuid.UUID,
+    body: FulfillmentTransitionRequest,
+    idempotency_key: IdempotencyKey,
+    request: Request,
+    user: ProcurementOperator,
+    session: DatabaseSession,
+) -> FulfillmentTransitionResponse:
+    return await fulfillment_service.transition(
+        session,
+        request_id,
+        body,
         idempotency_key,
         user,
         request.state.request_id,

@@ -5,6 +5,7 @@ import type {
   ApprovalRule,
   ApprovalTaskDetail,
   AgentRunDetail,
+  AgentEvent,
   AgentRunSummary,
   ApiErrorBody,
   ChatMessage,
@@ -14,6 +15,8 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
   KnowledgeSearchResponse,
+  FulfillmentStatus,
+  FulfillmentTransitionResult,
   InventoryItem,
   LoginResponse,
   MCPServer,
@@ -71,6 +74,28 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     )
   }
   return await response.json() as T
+}
+
+async function requestAgentEvents(runId: string, lastEventId = 0): Promise<AgentEvent[]> {
+  const headers = new Headers({ Accept: "text/event-stream" })
+  const accessToken = token()
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`)
+  if (lastEventId > 0) headers.set("Last-Event-ID", String(lastEventId))
+  const response = await fetch(`${apiRoot}/agent-runs/${runId}/events`, { headers })
+  if (!response.ok) {
+    throw new ApiError(`运行事件读取失败（HTTP ${response.status}）`, response.status, "HTTP_ERROR")
+  }
+  const content = await response.text()
+  return content.split("\n\n").flatMap((block) => {
+    if (!block.trim()) return []
+    const lines = block.split("\n")
+    const event = lines.find(line => line.startsWith("event: "))?.slice(7) || "message"
+    const rawData = lines.find(line => line.startsWith("data: "))?.slice(6)
+    if (!rawData) return []
+    const data = JSON.parse(rawData) as AgentEvent["data"]
+    const rawId = lines.find(line => line.startsWith("id: "))?.slice(4)
+    return [{ id: rawId ? Number(rawId) : data.seq, event, data }]
+  })
 }
 
 export const api = {
@@ -154,6 +179,20 @@ export const api = {
         body: JSON.stringify({ version }),
       },
     ),
+  transitionFulfillment: (
+    requestId: string,
+    targetStatus: FulfillmentStatus,
+    version: number,
+    note: string | null,
+    idempotencyKey: string,
+  ) => request<FulfillmentTransitionResult>(
+    `/procurements/${requestId}/fulfillment-transition`,
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ target_status: targetStatus, version, note }),
+    },
+  ),
   approvalTasks: (view: "pending" | "processed") =>
     request<Page<ApprovalInboxItem>>(`/approvals/tasks?view=${view}&page=1&page_size=100`),
   approvalTask: (taskId: string) => request<ApprovalTaskDetail>(`/approvals/tasks/${taskId}`),
@@ -200,6 +239,7 @@ export const api = {
   agentRuns: (params = "page=1&page_size=100") =>
     request<Page<AgentRunSummary>>(`/agent-runs?${params}`),
   agentRun: (runId: string) => request<AgentRunDetail>(`/agent-runs/${runId}`),
+  agentRunEvents: (runId: string, lastEventId = 0) => requestAgentEvents(runId, lastEventId),
   workflowRun: (runId: string) => request<WorkflowRunDetail>(`/workflows/runs/${runId}`),
   mcpServers: () => request<MCPServer[]>("/mcp/servers"),
   mcpTools: () => request<MCPTool[]>("/mcp/tools"),
