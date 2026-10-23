@@ -105,6 +105,8 @@ class ApprovalDecision(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
 
 class AgentRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Unified observability record for CHAT, WORKFLOW and HARNESS executions."""
+
     __tablename__ = "agent_runs"
     __table_args__ = (
         CheckConstraint(

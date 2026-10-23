@@ -18,6 +18,8 @@ class EmbeddingProvider(Protocol):
 
 
 class MockHashEmbeddingProvider:
+    """Deterministic lexical vectors for local tests, not a semantic language model."""
+
     source = "MOCK"
 
     def __init__(self, dimensions: int = 256) -> None:
@@ -81,6 +83,8 @@ class RemoteEmbeddingProvider:
 
 
 def get_embedding_provider() -> EmbeddingProvider:
+    # Indexing and querying both use this factory; changing providers therefore requires reindexing
+    # existing documents so stored vectors keep the same dimensions and embedding space.
     if settings.embedding_provider == "remote":
         return RemoteEmbeddingProvider(settings)
     return MockHashEmbeddingProvider(settings.embedding_dimensions)

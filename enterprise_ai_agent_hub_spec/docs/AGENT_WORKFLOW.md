@@ -1,24 +1,36 @@
 # Agent Workflow、LangGraph、MCP 与 Harness 设计 V1.1
 
 ## 1. 技术职责与调用关系
-`FastAPI → AgentRunner(Harness) → LangGraph Workflow → {LLM Adapter, RAG, Tool Registry} → {DB Tool, MCP Client→MCP Server}`。Harness 是执行管理能力组合，不是独立大模型或必须引入的第三方产品。LangGraph 是实现状态与条件流转的框架，Agent Workflow 是业务编排模式。
+
+当前实现不是一条所有组件都顺序经过的单链，而是由 FastAPI 暴露的三条受控链路：
+
+1. `FastAPI -> LLM Adapter -> Pydantic -> 人工确认 -> 采购草稿`。
+2. `FastAPI -> 采购服务 -> Tool Registry -> {RAG, DB Tool}`。
+3. `FastAPI -> 审批服务 -> LangGraph interrupt/checkpoint/resume`。
+4. 技术测试链路为 `FastAPI -> AgentRunner(Harness) -> Tool Registry -> MCP Client -> MCP Server`。
+
+Harness 是受限工具执行器，不是独立大模型或自主 Planner。LangGraph 是审批状态机和持久化
+恢复框架。详细源码导读见 `AI_AGENT_PIPELINE_GUIDE.md`。
 
 ## 2. 采购执行流程
-1. `parse_intent`：LLM 提取需求，Pydantic 校验；缺字段返回追问，不做写操作。
-2. `retrieve_policy`：按用户知识库 ACL 做 RAG 检索；返回引用和是否有足够证据；无依据不能编造规则。
-3. `query_inventory`：Tool Calling 选择允许的只读库存工具，验证 schema/权限。
-4. `query_quotes`：查演示供应商报价（可经 MCP）；标注 DEMO 和报价时间。
-5. `compose_proposal`：LLM 解释方案，价格和预算由 Decimal 确定性计算。
-6. `confirm_draft`：中断等待用户确认；未经确认不得创建采购草稿或提交。
-7. `validate_rules`：读取数据库审批规则，按总金额计算审批链；规则缺失时停止并提示配置。
-8. `submit_for_approval`：用户显式提交，服务端事务创建审批任务、写审计并暂停工作流。
-9. `human_approval`：通过受保护 API 批准/驳回，禁止自审；多级按顺序激活。
-10. `finalize`：全部批准后更新 APPROVED，后续采购履约由 PROCUREMENT 独立操作。
+1. `parse_intent`：LLM 对当前消息提取需求，Pydantic 校验；缺字段返回追问。
+2. `confirm_intent`：用户核对结构化卡片后创建采购草稿；这一步不经过 LangGraph。
+3. `build_plan`：采购服务以固定顺序调用库存、制度 RAG、供应商报价工具。
+4. `compose_proposal`：服务端使用 Decimal 计算并保存候选；当前不调用 LLM 生成方案。
+5. `validate_rules`：读取数据库审批规则，按派生总额计算审批链。
+6. `submit_for_approval`：用户显式提交，事务创建审批任务和审计，再启动 LangGraph。
+7. `await_approval`：LangGraph `interrupt` 将状态写入 PostgreSQL checkpoint 后暂停。
+8. `human_approval`：受保护 API 验证审批人、自审、顺序、幂等后写业务决定。
+9. `resume`：持久化恢复事件驱动 `Command(resume=...)`，进入下一阶段或终点。
+10. `finalize`：全部批准后为 APPROVED；采购履约由 PROCUREMENT 独立操作。
 
 **关键约束**：LLM 只负责理解、总结、建议和选择被授权的只读工具；任何采购状态、金额、审批规则和权限均由后端代码决定。前端节点图反映真实运行，不用于修改业务规则。
 
-## 3. GraphState 建议字段
-`run_id, thread_id, user_id, session_id, purchase_request_id?, user_input, intent?, missing_fields[], policy_citations[], inventory_hits[], supplier_quotes[], proposal?, rule_validation?, approval_stage?, approval_task_id?, pending_human_action?, status, errors[], step_count`。状态可序列化，不在 checkpoint 存明文密钥；checkpoint 绑定用户与会话权限。
+## 3. 当前 GraphState 字段
+
+`run_id, purchase_request_id, requester_id, total_budget, approval_stages[], current_stage_index,
+current_stage, pending_human_action, last_decision, status, errors[], step_count`。状态全部可序列化，
+不存明文密钥。checkpoint 只保存工作流位置，权限仍由业务 API 和 PostgreSQL 业务表验证。
 
 ## 4. 中断/恢复/幂等
 - 需要人工确认的节点通过 LangGraph interrupt/checkpoint 暂停；持久化 checkpoint 使用 PostgreSQL 兼容存储或经验证的适配器；不得仅使用内存存储作为正式交付。
@@ -33,9 +45,9 @@
 - MCP 工具管理页面仅提供只读白名单测试；无任意 shell/SQL/文件系统写入工具。
 
 ## 6. Mini Agent Harness
-- 统一 `AgentRunner.run()`：身份/资源权限、执行循环、允许工具列表、最大步骤（建议 12）、单工具超时（建议 10s）、总执行超时（建议 90s，等待人工审批时间不计入）、只读有限重试、取消信号、追踪和错误处理。
+- 统一 `AgentRunner.run()`：角色/策略权限、执行循环、允许工具列表、最大步骤、单工具超时、总执行超时、只读有限重试、追踪和错误处理。
 - 每次执行生成 run_id；每步记录 seq、node/tool、状态、开始/结束、耗时、脱敏摘要、错误码；敏感数据和 API Key 不记录。
-- 状态：CREATED/RUNNING/WAITING_USER/WAITING_APPROVAL/SUCCEEDED/FAILED/CANCELLED；用户点击“停止”仅取消可中断的生成/只读执行，不撤销已提交的业务写操作。
+- 当前 Harness 接收已经规划好的 `AgentCall` 列表，不自主调用 LLM 规划；运行状态持久化为 `AgentRun/AgentStep/AgentEvent`。
 - 限额触发应有 `STEP_LIMIT_EXCEEDED`、`TOOL_TIMEOUT`、`TOOL_NOT_ALLOWED` 等可解释错误，UI 展示恢复建议。
 
 ## 7. Mock 与真实模式

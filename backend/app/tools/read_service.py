@@ -20,6 +20,8 @@ from app.tools.schemas import (
 async def query_inventory(
     session: AsyncSession, parameters: InventorySearchInput
 ) -> dict[str, Any]:
+    """Shared read model used by both local Tool Registry and stdio MCP adapters."""
+
     limit = min(parameters.limit, settings.tool_max_result_items)
     rows = list(
         (

@@ -11,6 +11,8 @@ from app.core.config import settings
 
 
 class WorkflowRuntime:
+    """Owns the compiled graph and maps business run IDs to LangGraph checkpoint threads."""
+
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
         self._context: AbstractAsyncContextManager[AsyncPostgresSaver] | None = None
@@ -47,6 +49,7 @@ class WorkflowRuntime:
 
     async def begin(self, state: GraphState, thread_id: str) -> dict[str, Any]:
         await self.start()
+        # sync durability ensures the approval pause survives an API/container restart.
         result = await self._graph.ainvoke(
             state,
             self._config(thread_id),
@@ -58,6 +61,7 @@ class WorkflowRuntime:
 
     async def resume(self, thread_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         await self.start()
+        # thread_id selects prior workflow memory; payload is the validated human decision.
         await self._graph.ainvoke(
             Command(resume=payload),
             self._config(thread_id),

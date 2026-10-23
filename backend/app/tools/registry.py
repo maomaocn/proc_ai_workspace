@@ -53,6 +53,12 @@ class ToolExecution:
 
 
 class ToolRegistry:
+    """Single trust boundary for local, RAG, and MCP read-only tools.
+
+    Every caller gets the same role check, Pydantic input validation, timeout and normalized
+    execution metadata regardless of where the tool is implemented.
+    """
+
     def __init__(self) -> None:
         self._tools: dict[str, ToolDefinition] = {}
 
@@ -83,6 +89,8 @@ class ToolRegistry:
         user: User,
         session: AsyncSession,
     ) -> ToolExecution:
+        # Tool selection is not authorization. The registry re-checks the authenticated actor and
+        # validates model/UI supplied arguments before entering local code or an MCP process.
         definition = self.get(name)
         if user.roles.isdisjoint(definition.allowed_roles):
             raise AppError(403, "TOOL_NOT_ALLOWED", "当前角色无权调用此工具")
@@ -133,6 +141,8 @@ async def _mcp_supplier_quote(_: AsyncSession, __: User, parameters: BaseModel) 
 async def _policy_search(
     session: AsyncSession, user: User, parameters: BaseModel
 ) -> dict[str, Any]:
+    # This adapter is where RAG becomes an Agent tool. ACL selection stays server-side instead of
+    # trusting a collection ID or policy text chosen by a model.
     request = PolicySearchInput.model_validate(parameters)
     collection_id = request.collection_id
     if collection_id is None:

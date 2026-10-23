@@ -9,6 +9,8 @@ from app.core.config import settings
 
 
 class ChromaVectorStore:
+    """Persistent similarity index; PostgreSQL remains authoritative for text and status."""
+
     def __init__(self, path: str, collection_name: str) -> None:
         client = chromadb.PersistentClient(
             path=path,

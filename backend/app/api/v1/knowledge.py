@@ -200,6 +200,8 @@ async def upload_document(
         await session.rollback()
         storage_path.unlink(missing_ok=True)
         raise AppError(409, "STATE_CONFLICT", "相同内容的文档已存在") from exc
+    # The metadata row is committed as PENDING before indexing. KnowledgeService owns the
+    # PENDING -> INDEXING -> READY/FAILED transition across PostgreSQL, files and Chroma.
     indexed = await knowledge_service.index_document(session, document.id)
     return _document_read(indexed)
 

@@ -189,6 +189,8 @@ class ApprovalService:
             }
             for task in tasks
         ]
+        # Business rows remain authoritative. The graph receives serializable IDs and routing state
+        # so it can pause/resume without duplicating purchase or approval records in its checkpoint.
         graph_state: GraphState = {
             "run_id": str(run.id),
             "purchase_request_id": str(purchase.id),
@@ -352,6 +354,8 @@ class ApprovalService:
         await session.flush()
 
         run = self._active_run(purchase)
+        # Commit the decision and a durable resume event together. LangGraph is resumed only after
+        # that transaction succeeds, so a transient graph failure can be replayed idempotently.
         event = WorkflowResumeEvent(
             run_id=run.id,
             decision_id=decision.id,
@@ -673,7 +677,8 @@ class ApprovalService:
         return task
 
     async def _process_resume_event(self, session: AsyncSession, event_id: uuid.UUID) -> None:
-        # Approval commits before graph resume; this durable event makes a failed resume replayable.
+        """Resume checkpoint state from a durable, replayable business decision event."""
+
         event = await session.scalar(
             select(WorkflowResumeEvent).where(WorkflowResumeEvent.id == event_id)
         )

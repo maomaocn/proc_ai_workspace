@@ -15,6 +15,11 @@ if TYPE_CHECKING:
 
 
 class ChatSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Durable conversation history for ownership, UI replay and audit.
+
+    The current intent extractor reads only the new message; these rows are not yet LLM context.
+    """
+
     __tablename__ = "chat_sessions"
     __table_args__ = (Index("ix_chat_sessions_owner_updated", "owner_id", "updated_at"),)
 

@@ -36,6 +36,8 @@ class ReadinessResponse(HealthResponse):
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    # Compile LangGraph and initialize its PostgreSQL saver before accepting requests, so a process
+    # never reports healthy while durable approval resume is unavailable.
     await workflow_runtime.start()
     try:
         yield

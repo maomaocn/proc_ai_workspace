@@ -16,6 +16,8 @@ from app.schemas.knowledge import SearchHit, SearchResponse
 
 
 class KnowledgeService:
+    """Coordinates the two halves of RAG: offline indexing and online retrieval."""
+
     async def index_document(
         self,
         session: AsyncSession,
@@ -40,6 +42,8 @@ class KnowledgeService:
             if not chunks:
                 raise AppError(422, "DOCUMENT_EMPTY", "文档没有可索引文本")
 
+            # PostgreSQL keeps authoritative text/citations; Chroma keeps vectors plus IDs that
+            # point back to those rows. Keeping both lets retrieval re-check document status.
             provider = get_embedding_provider()
             embeddings = await provider.embed_documents([chunk.content for chunk in chunks])
             records: list[KnowledgeChunk] = []
@@ -138,6 +142,8 @@ class KnowledgeService:
         query: str,
         top_k: int,
     ) -> SearchResponse:
+        # Query and documents must use the same provider/dimensions. Chroma proposes candidates;
+        # PostgreSQL then filters out stale/deleted chunks before citations are returned.
         provider = get_embedding_provider()
         embedding = await provider.embed_query(query)
         candidates = await get_vector_store().query(
@@ -163,6 +169,8 @@ class KnowledgeService:
         )
         chunks_by_vector = {chunk.vector_id: chunk for chunk in rows}
         hits: list[SearchHit] = []
+        # The lexical-overlap guard makes the deterministic Mock embedding conservative: a vector
+        # collision alone cannot become "evidence" for an unrelated question.
         query_terms = set(tokenize(query))
         for candidate in candidates:
             chunk = chunks_by_vector.get(candidate["vector_id"])

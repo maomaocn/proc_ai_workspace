@@ -34,6 +34,8 @@ class OpenAICompatibleLLMProvider:
             {"role": "user", "content": text},
         ]
         last_error: Exception | None = None
+        # A repair prompt is allowed once, but both attempts must pass PurchaseIntent validation.
+        # The model output is data, never executable instructions or authoritative business state.
         for attempt in range(2):
             try:
                 payload = await self._request(messages)

@@ -11,6 +11,8 @@ Enterprise AI Agent Hub 是一个分阶段实施的企业级 AI 智能采购与�
 需求入口位于 [`enterprise_ai_agent_hub_spec/README.md`](enterprise_ai_agent_hub_spec/README.md)，
 阶段验收状态记录在
 [`docs/PHASE_STATUS.md`](enterprise_ai_agent_hub_spec/docs/PHASE_STATUS.md)。
+LLM、RAG、Agent Workflow、MCP、Harness 与 Memory 的实际串联方式见
+[`AI Agent 全链路源码导读`](enterprise_ai_agent_hub_spec/docs/AI_AGENT_PIPELINE_GUIDE.md)。
 
 ## 当前能力
 

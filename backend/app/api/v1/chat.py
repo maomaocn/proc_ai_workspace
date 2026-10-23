@@ -156,12 +156,16 @@ async def send_message(
     chat_session = await owned_session(session_id, user.id, session)
     if chat_session.archived_at is not None:
         raise AppError(409, "STATE_CONFLICT", "归档会话不能继续发送消息")
+    # Current-turn text is sent to the provider for structured extraction. Persisted chat history
+    # is conversation memory for display/audit, but is intentionally not injected into this call.
     try:
         result = await provider.extract_purchase_intent(body.content)
     except ModelProviderError as exc:
         raise AppError(503, "MODEL_UNAVAILABLE", "模型暂时无法解析采购需求") from exc
 
     started_at = datetime.now(UTC)
+    # CHAT runs use the same run/step/event observability model as workflows and the Harness.
+    # This unifies tracing; it does not mean this endpoint executes the LangGraph approval graph.
     run = AgentRun(
         user_id=user.id,
         request_id=None,
@@ -295,6 +299,8 @@ async def confirm_intent(
             {"missing_fields": missing, "missing_labels": labels},
         )
 
+    # Human confirmation is the trust boundary between model-derived data and a business write.
+    # ProcurementService/Pydantic recompute deterministic values such as total_budget.
     purchase = procurement_service.from_confirmed_intent(user, body.intent, message.run_id)
     session.add(purchase)
     await session.flush()

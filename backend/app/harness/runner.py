@@ -29,6 +29,12 @@ class AgentRunResult:
 
 
 class AgentRunner:
+    """A minimal bounded executor for an already-planned list of tool calls.
+
+    It is intentionally not an LLM planner. Its job is to enforce policy, limits, retries and
+    durable traces around ToolRegistry calls so a future planner cannot bypass these controls.
+    """
+
     def __init__(self, registry: ToolRegistry) -> None:
         self.registry = registry
 
@@ -50,6 +56,8 @@ class AgentRunner:
             raise AppError(400, "HARNESS_LIMIT_INVALID", "总超时超出允许范围")
 
         now = datetime.now(UTC)
+        # AgentRun/Step/Event are observability memory: they explain what ran, but are not fed back
+        # into the model as conversational or planning context.
         run = AgentRun(
             user_id=user.id,
             request_id=None,
@@ -124,6 +132,8 @@ class AgentRunner:
         allowed_tools: set[str],
         call_counts: dict[str, int],
     ) -> ToolPolicy:
+        # Authorization is deliberately layered: per-run allowlist, static registry roles, then
+        # mutable database policy and per-run call quota.
         if call.tool_name not in allowed_tools:
             raise AppError(403, "TOOL_NOT_ALLOWED", "工具不在本次运行白名单中")
         definition = self.registry.get(call.tool_name)

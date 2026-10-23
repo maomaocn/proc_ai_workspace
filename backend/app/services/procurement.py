@@ -189,6 +189,11 @@ class ProcurementService:
         purchase: PurchaseRequest,
         user: User,
     ) -> ProcurementPlanResponse:
+        """Compose a proposal through tools while keeping orchestration deterministic.
+
+        The current M6 implementation does not ask an LLM to choose tools: it deliberately calls
+        inventory, policy RAG, then quotes in a fixed order and computes money in backend code.
+        """
         self.require_owner_draft(purchase, user)
         executions: list[ToolExecution] = []
         inventory = await tool_registry.invoke(

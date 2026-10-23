@@ -21,6 +21,8 @@ class MCPToolInfo:
 
 
 class MCPClient:
+    """Adapts an isolated stdio MCP process to the internal Tool Registry contract."""
+
     def _parameters(self) -> StdioServerParameters:
         env = {
             "DATABASE_URL": settings.database_url,
@@ -68,6 +70,8 @@ class MCPClient:
             raise AppError(503, "MCP_UNAVAILABLE", "MCP Server 不可用") from exc
 
     async def call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        # A fresh protocol session performs handshake/identity validation before every call. Tool
+        # results remain untrusted data and are returned through the registry/harness boundaries.
         try:
             async with (
                 stdio_client(self._parameters()) as streams,

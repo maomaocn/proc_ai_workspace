@@ -14,6 +14,7 @@
 6. `docs/ACCEPTANCE_CRITERIA.md`：功能与安全验收矩阵。
 7. `docs/IMPLEMENTATION_PLAN.md` 与 `docs/phases/M0.md`～`M6.md`：Codex 阶段开发任务。
 8. 根目录 `AGENTS.md`：Codex 自动识别“开始 M1 阶段任务”等命令。
+9. `docs/AI_AGENT_PIPELINE_GUIDE.md`：按真实源码调用链理解 LLM、RAG、Workflow、Harness、MCP 与 Memory。
 
 ## 文档优先级
 安全和业务不变量 > PRD > API/数据库/工作流专项规范 > 前端 PRD/UI > 架构建议 > 阶段计划。冲突须报告，不得静默自行改变业务规则。

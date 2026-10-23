@@ -162,6 +162,8 @@ async def stream_agent_events(
     session: DatabaseSession,
     last_event_id: Annotated[str | None, Header(alias="Last-Event-ID")] = None,
 ) -> StreamingResponse:
+    # These persisted events are replayable observability output. They are distinct from LangGraph
+    # checkpoints, which contain executable workflow position and are accessed by WorkflowRuntime.
     run = await _get_run(session, run_id)
     _require_run_read(run, user)
     try:

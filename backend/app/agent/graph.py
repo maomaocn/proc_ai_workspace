@@ -30,6 +30,8 @@ def await_approval(
     state: GraphState,
 ) -> Command[Literal["await_approval", "finalize", "record_rejection"]]:
     stage = state["approval_stages"][state["current_stage_index"]]
+    # interrupt() persists the state and returns control to FastAPI. A later protected approval API
+    # validates the actor/business row and supplies ResumeDecision through Command(resume=...).
     raw_decision = interrupt(
         {
             "type": "approval",
@@ -86,6 +88,8 @@ def record_rejection(state: GraphState) -> dict[str, object]:
 
 
 def build_approval_graph(checkpointer):
+    """Compile the human-in-the-loop state machine with durable PostgreSQL checkpoints."""
+
     builder = StateGraph(GraphState)
     builder.add_node("resolve_approval_chain", resolve_approval_chain)
     builder.add_node("await_approval", await_approval)

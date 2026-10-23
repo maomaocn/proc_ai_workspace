@@ -11,6 +11,12 @@ class ApprovalStageState(TypedDict):
 
 
 class GraphState(TypedDict):
+    """Serializable approval workflow state persisted by the LangGraph checkpointer.
+
+    This is workflow memory, not chat history or RAG memory. IDs connect it to authoritative
+    PostgreSQL business rows; it never stores secrets or treats checkpoint values as authorization.
+    """
+
     run_id: str
     purchase_request_id: str
     requester_id: str
